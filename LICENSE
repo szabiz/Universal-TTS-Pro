@@ -2,27 +2,22 @@
 UNIVERSAL TTS PRO - LICENSE & CREDITS
 ================================================================================
 
-1. PROJECT LICENSE (MIT)
+1. PROJECT LICENSE (GNU General Public License v3.0)
 --------------------------------------------------------------------------------
 Copyright (c) 2026 szabiz
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+You should have received a copy of the GNU General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 
 2. THIRD-PARTY LICENSES & CREDITS
@@ -30,11 +25,11 @@ SOFTWARE.
 This project relies on the following open-source components, libraries,
 binaries, and AI voice models:
 
-- Sherpa-ONNX: Apache License 2.0
-  Source: https://github.com/k2-fsa/sherpa-onnx
-
 - eSpeak-ng (Data/Phonetic rules): GNU GPL v3.0
   Source: https://github.com/espeak-ng/espeak-ng
+
+- Sherpa-ONNX: Apache License 2.0
+  Source: https://github.com/k2-fsa/sherpa-onnx
 
 - Piper Voice Models (rhasspy/piper-voices):
   * LibriTTS-R (en_US): CC BY 4.0
@@ -62,72 +57,70 @@ binaries, and AI voice models:
   Source: https://www.python.org/
 
 
-3. IMPORTANT NOTICE ABOUT AI MODELS
+3. IMPORTANT NOTICE ABOUT AI MODELS & OTHER ASSETS
 --------------------------------------------------------------------------------
-Some AI model weights included or supported by this project may be distributed
-under licenses that include additional usage restrictions.
+While the overall software distribution is licensed under GNU GPL v3.0 (due to
+the inclusion of eSpeak-ng), bundled AI model weights and audio assets retain
+their original licenses:
 
-In particular, Supertonic model weights are distributed under the OpenRAIL-M
-license, which allows commercial use but includes behavioral restrictions
-(prohibiting harmful, deceptive, abusive, or illegal usage).
+- Supertonic model weights are distributed under the OpenRAIL-M license,
+  which allows commercial use but includes behavioral and ethical restrictions
+  (prohibiting harmful, deceptive, or illegal usage).
+- Piper voice models are subject to CC BY 4.0 (attribution required) or CC0.
 
 Users and redistributors are responsible for complying with all applicable
-third-party licenses and usage requirements.
+third-party model licenses alongside the project's GPL v3.0 software license.
 
 
 4. BINARY REDISTRIBUTION NOTICE
 --------------------------------------------------------------------------------
-This distribution may include unmodified third-party binaries and model files.
+This distribution includes third-party binaries, libraries, and model files.
+All trademarks, copyrights, and intellectual property rights belong to their
+respective owners.
 
-All trademarks, copyrights, and other rights belong to their respective
-authors and owners.
-
-Third-party components are redistributed under their respective licenses.
+Third-party permissive components (Apache 2.0, BSD, MIT, PSF) and model files
+are redistributed in compliance with their respective license terms within this
+GPL v3.0 combined work.
 
 
 5. LICENSE DEFINITIONS (Quick Guide)
 --------------------------------------------------------------------------------
-- MIT:
-  Extremely permissive. Allows commercial use, modification, distribution,
-  and private use.
+- GNU GPL v3.0:
+  Primary Software License. Ensures that the software remains free and open-source.
+  Any redistribution of the software or modified versions must include the source code
+  and be distributed under GNU GPL v3.0.
 
 - Apache 2.0:
-  Permissive and commercial-friendly. Requires preservation of copyright and
-  license notices and includes patent protection.
+  Permissive open-source license with explicit patent protection. Compatible with GPL v3.0.
 
 - BSD 3-Clause:
-  Permissive license allowing redistribution and commercial use, provided
-  copyright notices and disclaimers are retained.
+  Permissive license allowing redistribution provided copyright notices are retained.
+
+- MIT:
+  Permissive license allowing free use, modification, and redistribution with copyright.
 
 - CC BY 4.0:
-  Allows free use and redistribution with proper attribution to the original
-  creator.
+  Creative Commons Attribution license. Free use allowed with credit to the original creator.
 
 - CC0:
   Public Domain dedication. Free to use without restrictions.
 
-- GNU GPL v3.0:
-  A "copyleft" license. It ensures that the software remains free and open-source.
-  Any distribution of the software must include the source code or make it 
-  freely available.
-
 - OpenRAIL-M:
-  Allows commercial and research use but includes behavioral restrictions
-  intended to prevent harmful or abusive usage.
+  Open Responsible AI License (Model). Allows commercial and research use,
+  but includes specific behavioral restrictions against harmful usage.
 
 - PSF:
-  Python Software Foundation License. Compatible with commercial use and
-  redistribution.
+  Python Software Foundation License. Compatible with commercial use and redistribution.
 
 
-6. RECOMMENDED THIRD-PARTY LICENSE FILES
+6. RECOMMENDED INCLUDED LICENSE FILES
 --------------------------------------------------------------------------------
-For maximum compliance and transparency, redistributions of this software
-should also include copies of the following licenses when applicable:
+For maximum compliance and transparency, distributions of this package
+should include the main LICENSE (GPL v3.0) along with references or copies of:
 
-- MIT License
-- Apache License 2.0
-- BSD 3-Clause License
-- OpenRAIL-M License
-- CC BY 4.0 License
-- PSF License
+- GNU General Public License v3.0 (Main project license)
+- Apache License 2.0 (Sherpa-ONNX)
+- BSD 3-Clause License (NumPy, Opus)
+- MIT License (SoundDevice, Supertonic code)
+- OpenRAIL-M License (Supertonic model weights)
+- CC BY 4.0 License Text / Link (Piper LibriTTS-R model)
