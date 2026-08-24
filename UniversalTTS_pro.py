@@ -2494,7 +2494,7 @@ class App:
             "------------------------------------------\n"
             "Developer: szabiz\n"
             "Contact: szabiz@yahoo.com\n"
-            "License: MIT License (Open Source)\n\n"
+            "License: GNU GPL v3.0 License (Open Source)\n\n"
             "Soli Deo Gloria"
         )
         win = tk.Toplevel(self.root)
