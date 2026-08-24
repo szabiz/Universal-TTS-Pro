@@ -228,7 +228,7 @@ All Piper voice models are distributed via the [`rhasspy/piper-voices`](https://
 
 - **GNU GPL v3.0** *(espeak-ng-data):* This is a copyleft license. Because the portable package includes espeak-ng data for phonetic conversion, the combined distribution is subject to GPLv3 terms, requiring open-source availability. Since the Universal TTS Pro source code is freely available under the MIT license on GitHub, this requirement is naturally fulfilled.
 
-Universal TTS Pro itself is released under the **MIT License** — see the [`LICENSE`](./LICENSE) file for details.
+Universal TTS Pro itself is released under the GNU General Public License v3.0 — see the LICENSE file for details.
 
 ---
 
