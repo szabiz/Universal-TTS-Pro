@@ -45,6 +45,7 @@ This project is built upon incredible open-source technologies, respecting all t
 * **Voice Engine (Piper):** [Sherpa-ONNX Runtime](https://github.com/k2-fsa/sherpa-onnx) by k2-fsa / Next-gen Kaldi — **Apache 2.0 License**
 * **Voice Models (Piper):** Community-contributed models from Mozilla Common Voice & [rhasspy/piper-voices](https://huggingface.co/rhasspy/piper-voices) — **MIT** (repo-level; individual model licenses in MODEL_CARD)
 * **Voice Engine (Supertonic):** [Supertonic TTS 3](https://github.com/supertone-inc/supertonic) by Supertone Inc. — **MIT License** (code) / **OpenRAIL-M** (model weights)
+* **Text-to-Phoneme Data (espeak-ng):** [eSpeak-ng](https://github.com/espeak-ng/espeak-ng) — **GNU GPL v3.0 License**
 * **Audio Playback:** [SoundDevice](https://python-sounddevice.readthedocs.io/) (PortAudio) by Matthias Geier — **MIT License**
 * **Numerical Processing:** [NumPy](https://numpy.org/) — **BSD 3-Clause License**
 * **Audio Compression:** [Opus Tools (opusenc)](https://gitlab.xiph.org/xiph/opus-tools) by Xiph.Org Foundation — **BSD 3-Clause License**
@@ -88,7 +89,6 @@ To compile a working executable from source, you must manually obtain and place 
 #### Python dependencies:
 ```bash
 pip install sherpa-onnx sounddevice numpy supertonic
-```
 
 #### Build command:
 ```bash
@@ -109,7 +109,7 @@ Universal-TTS-pro/
 ├── UniversalTTS_pro.py           # Main Python source code
 ├── UniversalTTS_Pro.spec         # PyInstaller build configuration
 ├── build_UniversalTTS_Pro.bat    # Automated build script
-├── LICENSE                       # MIT License
+├── LICENSE                       # GNU General Public License v3.0 (GPLv3)
 ├── README.md                     # This documentation
 ├── javitasok_HU.txt              # Hungarian normalization dictionary
 ├── javitasok_EN.txt              # English normalization dictionary
@@ -149,19 +149,19 @@ UniversalTTS_Pro_v1.3.1_Portable/
 │   └── [other PyInstaller runtime files]
 │
 models/                            # Voice model files
-│   ├── hu_HU-berta-medium.onnx    # Hungarian voice — Berta   (MIT / CC0)
+│   ├── hu_HU-berta-medium.onnx    # Hungarian voice — Berta    (MIT / CC0)
 │   ├── hu_HU-berta-medium.onnx.json
 │   ├── hu_HU-berta-medium.onnx.tokens
-│   ├── hu_HU-anna-medium.onnx     # Hungarian voice — Anna    (MIT / CC0)
+│   ├── hu_HU-anna-medium.onnx     # Hungarian voice — Anna     (MIT / CC0)
 │   ├── hu_HU-anna-medium.onnx.json
 │   ├── hu_HU-anna-medium.onnx.tokens
-│   ├── hu_HU-imre-medium.onnx     # Hungarian voice — Imre    (MIT / CC0)
+│   ├── hu_HU-imre-medium.onnx     # Hungarian voice — Imre     (MIT / CC0)
 │   ├── hu_HU-imre-medium.onnx.json
 │   ├── hu_HU-imre-medium.onnx.tokens
 │   ├── en_US-libritts_r-medium.onnx  # English voice — LibriTTS-R (CC BY 4.0)
 │   ├── en_US-libritts_r-medium.onnx.json
 │   ├── en_US-libritts_r-medium.onnx.tokens
-│   ├── ro_RO-mihai-medium.onnx    # Romanian voice — Mihai    (MIT / CC0)
+│   ├── ro_RO-mihai-medium.onnx    # Romanian voice — Mihai     (MIT / CC0)
 │   ├── ro_RO-mihai-medium.onnx.json
 │   ├── ro_RO-mihai-medium.onnx.token
 │   └── supertonic3/                # Supertonic 3 weights  (OpenRAIL-M)
