@@ -2,9 +2,10 @@
 UNIVERSAL TTS PRO - LICENSE & CREDITS
 ================================================================================
 
-1. PROJECT LICENSE (GNU General Public License v3.0)
+1. MAIN PROJECT LICENSE (GNU General Public License v3.0)
 --------------------------------------------------------------------------------
-Copyright (c) 2026 szabiz
+Universal TTS Pro
+Copyright (C) 2026 szabiz
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -33,10 +34,10 @@ binaries, and AI voice models:
 
 - Piper Voice Models (rhasspy/piper-voices):
   * LibriTTS-R (en_US): CC BY 4.0
-  * Berta (hu_HU): CC0 (Public Domain)
-  * Anna (hu_HU): CC0 (Public Domain)
-  * Imre (hu_HU): CC0 (Public Domain)
-  * Mihai (ro_RO): CC0 (Public Domain)
+  * Berta (hu_HU): CC0 1.0 (Public Domain)
+  * Anna (hu_HU): CC0 1.0 (Public Domain)
+  * Imre (hu_HU): CC0 1.0 (Public Domain)
+  * Mihai (ro_RO): CC0 1.0 (Public Domain)
   Source: https://huggingface.co/rhasspy/piper-voices
 
 - Supertonic 3:
@@ -57,19 +58,19 @@ binaries, and AI voice models:
   Source: https://www.python.org/
 
 
-3. IMPORTANT NOTICE ABOUT AI MODELS & OTHER ASSETS
+3. IMPORTANT NOTICE ABOUT AI MODELS & ASSETS
 --------------------------------------------------------------------------------
-While the overall software distribution is licensed under GNU GPL v3.0 (due to
-the inclusion of eSpeak-ng), bundled AI model weights and audio assets retain
+While the core software code is distributed under GNU GPL v3.0 (due to the
+inclusion of eSpeak-ng), bundled AI model weights and audio assets retain
 their original licenses:
 
 - Supertonic model weights are distributed under the OpenRAIL-M license,
-  which allows commercial use but includes behavioral and ethical restrictions
-  (prohibiting harmful, deceptive, or illegal usage).
-- Piper voice models are subject to CC BY 4.0 (attribution required) or CC0.
+  which permits commercial use but enforces behavioral restrictions
+  (prohibiting deceptive, harmful, or illegal use).
+- Piper voice models are subject to CC BY 4.0 (attribution required) or CC0 1.0.
 
 Users and redistributors are responsible for complying with all applicable
-third-party model licenses alongside the project's GPL v3.0 software license.
+third-party model licenses alongside the project's main GPL v3.0 software license.
 
 
 4. BINARY REDISTRIBUTION NOTICE
@@ -87,7 +88,7 @@ GPL v3.0 combined work.
 --------------------------------------------------------------------------------
 - GNU GPL v3.0:
   Primary Software License. Ensures that the software remains free and open-source.
-  Any redistribution of the software or modified versions must include the source code
+  Any distribution of the software or modified versions must include the source code
   and be distributed under GNU GPL v3.0.
 
 - Apache 2.0:
@@ -97,12 +98,12 @@ GPL v3.0 combined work.
   Permissive license allowing redistribution provided copyright notices are retained.
 
 - MIT:
-  Permissive license allowing free use, modification, and redistribution with copyright.
+  Permissive license allowing free use, modification, and redistribution with copyright notice.
 
 - CC BY 4.0:
   Creative Commons Attribution license. Free use allowed with credit to the original creator.
 
-- CC0:
+- CC0 1.0:
   Public Domain dedication. Free to use without restrictions.
 
 - OpenRAIL-M:
@@ -113,14 +114,15 @@ GPL v3.0 combined work.
   Python Software Foundation License. Compatible with commercial use and redistribution.
 
 
-6. RECOMMENDED INCLUDED LICENSE FILES
+6. RECOMMENDED THIRD-PARTY LICENSE FILES
 --------------------------------------------------------------------------------
 For maximum compliance and transparency, distributions of this package
 should include the main LICENSE (GPL v3.0) along with references or copies of:
 
-- GNU General Public License v3.0 (Main project license)
-- Apache License 2.0 (Sherpa-ONNX)
-- BSD 3-Clause License (NumPy, Opus)
-- MIT License (SoundDevice, Supertonic code)
-- OpenRAIL-M License (Supertonic model weights)
-- CC BY 4.0 License Text / Link (Piper LibriTTS-R model)
+- GNU General Public License v3.0
+- Apache License 2.0
+- BSD 3-Clause License
+- MIT License
+- OpenRAIL-M License
+- CC BY 4.0 License
+- PSF License
