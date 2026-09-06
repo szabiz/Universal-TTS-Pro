@@ -17,6 +17,15 @@ A portable, fully offline Text-to-Speech (TTS) client built with Python and Tkin
 * **Click-to-Jump Navigation:** Click on any sentence inside the text area while speech is active to instantly skip or resume playback from that exact point.
 * **Instant Smart STOP:** Pressing STOP instantly kills both the audio playback AND the background file generation process.
 * **Flexible Audio Outputs:** Export speech to studio-quality **WAV** or space-efficient, high-fidelity **OPUS** files.
+---
+# What's New in v1.3.4
+
+* **Max Chunk Length (Characters):** Added configuration to control the maximum number of characters processed simultaneously within a single synthesis block.
+* **Volume Settings:** Introduced adjustable volume control features.
+* **Supertonic 3 Phonetic Corrections:** Enhanced phonetic replacement and correction features tailored for Supertonic 3.
+* **New Clean & Smaller Build (`build_UniversalTTS_Pro_1.3.4`):** Optimized packaging script to build a cleaner and smaller executable version.
+* **Bug Fixes:** Resolved minor application freezing issues for smoother overall stability.
+* **Improved Audio Export Quality:** Fixed sentence-ending clipping issues during file saving, delivering cleaner and higher audio quality compared to live preview.
 
 ---
 
