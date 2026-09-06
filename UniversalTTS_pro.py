@@ -1,17 +1,38 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-UNIVERSAL TTS PRO - v1.3.1 (PORTABLE EDITION)
+UNIVERSAL TTS PRO - v1.3.4 (PORTABLE & MULTI-LANG EDITION)
 TELJES FÜGGŐSÉGKEZELŐ + HORDOZHATÓ / PENDRIVE TÁMOGATÁS
+SUPERTONIC FONETIKUS JAVÍTÁSSAL KIEGÉSZÍTETT VÁLTOZAT
 Soli Deo Gloria
 
-ÚJDONSÁGOK v1.3.1:
+ÚJDONSÁGOK v1.3.2:
   - Indításkor automatikus függőség-ellenőrzés
   - Hiányzó csomagok automatikus telepítési javaslata
   - opusenc.exe automatikus letöltése
   - Modell letöltési útmutató beépítve
   - PyInstaller kompatibilis hordozható mód
   - Pendrive / offline használat: minden komponens helyi
+
+JAVÍTÁSOK / ÚJDONSÁGOK v1.3.4:
+  - Supertonic alapértelmezett beállítások frissítve minden hangnál:
+    total_steps=10, max_chunk_length=120, silence=0.3, buffer=8192
+    (opus bitráta és hangerő normalizálás változatlan: 64 kbps / 70%)
+  - JAVÍTVA: a Supertonic beállítópanel feliratai (Minőség, Max
+    blokkhossz, Csend, Opus, Puffer, Hangerő, "Current voice") eddig
+    NEM váltottak nyelvet HU/EN/RO között — most már igen.
+  - JAVÍTVA: a "Buffer size" (puffer méret) beállítás el lett mentve/
+    betöltve, de a lejátszásnál sosem lett ténylegesen felhasználva —
+    most már a lejátszó stream blokkméretét (blocksize) vezérli.
+  - JAVÍTVA: a Supertonic beállítások mentésekor hiányzott a hangerő
+    normalizálás (0-100%) és a csend-hossz (>=0) érték-ellenőrzése.
+  - Bővített, mindhárom nyelven (HU/EN/RO) elérhető Súgó: minden
+    Piper és Supertonic beállítás részletes leírása, kiemelve, hogy a
+    Piper "Sebesség" fordítottan működik (minél nagyobb, annál
+    lassabb!), valamint a fonetikus szabályokban használt '!' jel
+    pontos működése, példákkal.
+  - Rövid, mindig látható emlékeztető felirat a fonetikus szabályok
+    mezője alatt a '!' jel működéséről.
 """
 
 import sys
@@ -70,8 +91,54 @@ except ImportError:
 # ════════════════════════════════════════════════════════════════════════════
 
 APP_NAME    = "Universal TTS Pro"
-VERSION     = "1.3.1"
+VERSION     = "1.3.4"
 CREATE_NO_WINDOW = 0x08000000
+
+# ════════════════════════════════════════════════════════════════════════════
+#  ALAPÉRTELMEZETT HANGBEÁLLÍTÁSOK
+#  A Piper és Supertonic beállításai modellenként külön JSON-ban tárolódnak.
+#  A hangerő-normalizálás 70 = a maximális digitális csúcs 70%-a.
+# ════════════════════════════════════════════════════════════════════════════
+DEFAULT_PIPER_SETTINGS = {
+    "speed": 1.3,
+    "n_scale": 0.5,
+    "n_w": 0.6,
+    "silence": 0.7,
+    "opus": "--bitrate 64",
+    "buffer": 4096,
+    "volume_norm": 70,
+}
+
+DEFAULT_ST_SETTINGS = {
+    "speed": 1.0,
+    "total_steps": 10,
+    "max_chunk_length": 120,
+    "silence": 0.3,
+    "opus": "--bitrate 64",
+    "buffer": 8192,
+    "volume_norm": 70,
+    "use_phonetic": False,
+    "phonetic_rules": "vas!:vash, Saul:Shaul, Salamon:Shalamon, Zs:zzs",
+}
+
+# ════════════════════════════════════════════════════════════════════════════
+#  NYELVENKÉNTI MAGÁNHANGZÓ-KÉSZLETEK a Fonetikus szabályok '!' jeléhez
+#  (v1.3.5). Ez dönti el, mit tekint a program "magánhangzónak" az adott
+#  nyelven, amikor a '!' jelet használó szabály azt vizsgálja, hogy a
+#  csere helyén NEM következik-e magánhangzó.
+#  BŐVÍTHETŐ: bárki hozzáadhat új nyelvet, csak fel kell venni egy új
+#  "nyelvkód: magánhangzók" sort. A Supertonic motor 31 nyelvet támogat;
+#  itt egyelőre a programban ténylegesen használt HU/EN/RO nyelvekhez van
+#  pontosan összeállítva a lista — a többi nyelv magánhangzó-készletét
+#  (pl. cirill, arab, kínai stb. írásrendszerek) mindenki a saját nyelvén
+#  tudja legpontosabban kiegészíteni.
+# ════════════════════════════════════════════════════════════════════════════
+LANGUAGE_VOWELS = {
+    "hu": "aáeéiíoóöőuúüű",
+    "en": "aeiou",
+    "ro": "aăâeiîou",
+}
+DEFAULT_VOWEL_LANG = "hu"
 
 # Supertonic hangok listája
 SUPERTONIC_VOICES = [
@@ -151,38 +218,6 @@ def get_data_path(relative_path):
     else:
         base_path = os.path.dirname(os.path.abspath(__file__))
     return os.path.join(base_path, relative_path)
-
-
-def find_onnx_models():
-    """Visszaadja az összes talált .onnx modell nevét."""
-    found = []
-    dirs = [get_data_path("models"), resource_path("models")]
-    for d in dirs:
-        if os.path.exists(d):
-            found += [f for f in os.listdir(d) if f.endswith(".onnx")]
-    return sorted(list(set(found)))
-
-def find_supertonic_models():
-    """Rekurzivan keresi a Supertonic modell fajlokat a models/supertonic3/ mappaban
-    es osszes almappajaban. Visszaadja: (found_ok, st_root, paths_dict)
-    """
-    st_root = get_data_path(os.path.join("models", "supertonic3"))
-    if not os.path.isdir(st_root):
-        return False, st_root
-
-    # Rekurzivan megkeresi a fajlt az osszes almappaban
-    def find_file(filename, search_root):
-        for dirpath, dirnames, filenames in os.walk(search_root):
-            if filename in filenames:
-                return os.path.join(dirpath, filename)
-        return None
-
-    encoder = find_file("text_encoder.onnx", st_root)
-    vocoder = find_file("vocoder.onnx", st_root)
-    tts_json = find_file("tts.json", st_root)
-
-    ok = all([encoder, vocoder, tts_json])
-    return ok, st_root
 
 
 def find_opusenc():
@@ -767,80 +802,118 @@ class SetupWizard(tk.Toplevel):
         self.destroy()
         sys.exit(0)
 
-
 # ════════════════════════════════════════════════════════════════════════════
-#  FORDÍTÁSOK
+#  FORDÍTÁSOK (HU / EN / RO)
 # ════════════════════════════════════════════════════════════════════════════
 
 LANGS = {
     "HU": {
-        "title":        "UNIVERSAL TTS PRO",
-        "settings":     "Beállítások",
-        "speak":        "FELOLVASÁS",
-        "stop":         "STOP",
-        "input_lbl":    "Bemeneti szöveg:",
-        "out_lbl":      "Kimeneti (tisztított) szöveg:",
-        "import":       "Import .txt",
-        "fix":          "JAVÍTÁS (KONVERTÁL)",
-        "dict":         "✎ Szótár",
-        "clear":        "Törlés",
-        "save_wav":     "WAV Mentés",
-        "save_opus":    "OPUS Mentés",
-        "status_ready": "Kész / Ready",
-        "status_gen":   "Generálás...",
-        "status_opus":  "Opus kódolás...",
-        "save_mod":     "MENTÉS MODELBE",
-        "close_btn":    "BEZÁRÁS / CLOSE",
-        "about_btn":    "Névjegy",
-        "lbl_speed":    "Speed (Length Scale):",
-        "lbl_silence":  "Silence:",
-        "lbl_buffer":   "Buffer size:",
+        "title":              "UNIVERSAL TTS PRO",
+        "settings":           "Beállítások",
+        "speak":              "FELOLVASÁS",
+        "stop":               "STOP",
+        "input_lbl":          "Bemeneti szöveg:",
+        "out_lbl":            "Kimeneti (tisztított) szöveg:",
+        "import":             "Import .txt",
+        "fix":                "JAVÍTÁS (KONVERTÁL)",
+        "dict":               "✎ Szótár",
+        "clear":              "Törlés",
+        "save_wav":           "WAV Mentés",
+        "save_opus":          "OPUS Mentés",
+        "status_ready":       "Kész / Ready",
+        "status_gen":         "Generálás...",
+        "status_opus":        "Opus kódolás...",
+        "save_mod":           "MENTÉS MODELLBE",
+        "close_btn":          "BEZÁRÁS",
+        "about_btn":          "Névjegy",
+        "lbl_speed":          "Sebesség (Length Scale):",
+        "lbl_nscale":         "Zaj skála (Noise Scale):",
+        "lbl_nwidth":         "Zaj szélesség (Noise Width):",
+        "lbl_silence":        "Csend hossza (szünet):",
+        "lbl_buffer":         "Puffer méret:",
+        "lbl_opus":           "Opus bitráta:",
+        "lbl_vol":            "Hangerő normalizálás (%):",
+        "st_title":           "🎙 SUPERTONIC BEÁLLÍTÁSOK",
+        "lbl_st_speed":       "Sebesség (Speed):",
+        "lbl_st_speed_hint":  "Nagyobb érték = gyorsabb beszéd",
+        "lbl_st_quality":     "Minőség (total_steps, 1-12):",
+        "lbl_st_chunk":       "Max blokkhossz (karakter):",
+        "lbl_current_voice":  "Kiválasztott hang:",
+        "chk_phonetic":       "Fonetikus javítás (Supertonic)",
+        "lbl_phonetic_rules": "Fonetikus szabályok:",
+        "lbl_phonetic_hint":  "Formátum: forrás:cél, ... — nincs '!' jel: MINDENÜTT cserél (szó elején/közepén/végén is). '!' a forrás végén: MINDENÜTT cserél, KIVÉVE ha a következő betű az aktuális nyelv (HU/EN/RO) magánhangzója.",
     },
     "EN": {
-        "title":        "UNIVERSAL TTS PRO",
-        "settings":     "Settings",
-        "speak":        "QUICK SPEAK",
-        "stop":         "STOP",
-        "input_lbl":    "Input Text:",
-        "out_lbl":      "Cleaned Output:",
-        "import":       "Import .txt",
-        "fix":          "FIX & CONVERT",
-        "dict":         "✎ Dictionary",
-        "clear":        "Clear",
-        "save_wav":     "Save WAV",
-        "save_opus":    "Save OPUS",
-        "status_ready": "Ready",
-        "status_gen":   "Generating...",
-        "status_opus":  "Opus encoding...",
-        "save_mod":     "SAVE TO MODEL",
-        "close_btn":    "CLOSE / BEZÁRÁS",
-        "about_btn":    "About",
-        "lbl_speed":    "Speed (Length Scale):",
-        "lbl_silence":  "Silence:",
-        "lbl_buffer":   "Buffer size:",
+        "title":              "UNIVERSAL TTS PRO",
+        "settings":           "Settings",
+        "speak":              "QUICK SPEAK",
+        "stop":               "STOP",
+        "input_lbl":          "Input Text:",
+        "out_lbl":            "Cleaned Output:",
+        "import":             "Import .txt",
+        "fix":                "FIX & CONVERT",
+        "dict":               "✎ Dictionary",
+        "clear":              "Clear",
+        "save_wav":           "Save WAV",
+        "save_opus":          "Save OPUS",
+        "status_ready":       "Ready",
+        "status_gen":         "Generating...",
+        "status_opus":        "Opus encoding...",
+        "save_mod":           "SAVE TO MODEL",
+        "close_btn":          "CLOSE",
+        "about_btn":          "About",
+        "lbl_speed":          "Speed (Length Scale):",
+        "lbl_nscale":         "Noise Scale:",
+        "lbl_nwidth":         "Noise Width:",
+        "lbl_silence":        "Silence duration:",
+        "lbl_buffer":         "Buffer size:",
+        "lbl_opus":           "Opus Bitrate:",
+        "lbl_vol":            "Volume Normalization (%):",
+        "st_title":           "🎙 SUPERTONIC SETTINGS",
+        "lbl_st_speed":       "Speed:",
+        "lbl_st_speed_hint":  "Higher value = faster speech",
+        "lbl_st_quality":     "Quality (total_steps, 1-12):",
+        "lbl_st_chunk":       "Max chunk length (chars):",
+        "lbl_current_voice":  "Current voice:",
+        "chk_phonetic":       "Phonetic correction (Supertonic)",
+        "lbl_phonetic_rules": "Phonetic rules:",
+        "lbl_phonetic_hint":  "Format: source:target, ... — no '!': replaces EVERYWHERE (start/middle/end of word too). Trailing '!': replaces EVERYWHERE EXCEPT where the next letter is a vowel of the current language (HU/EN/RO).",
     },
     "RO": {
-        "title":        "UNIVERSAL TTS PRO",
-        "settings":     "Setări",
-        "speak":        "CITIRE RAPIDĂ",
-        "stop":         "STOP",
-        "input_lbl":    "Text de intrare:",
-        "out_lbl":      "Text curățat (ieșire):",
-        "import":       "Import .txt",
-        "fix":          "CORECTARE (CONVERSIE)",
-        "dict":         "✎ Dicționar",
-        "clear":        "Șterge",
-        "save_wav":     "Salvare WAV",
-        "save_opus":    "Salvare OPUS",
-        "status_ready": "Gata / Ready",
-        "status_gen":   "Generare...",
-        "status_opus":  "Codificare Opus...",
-        "save_mod":     "SALVARE ÎN MODEL",
-        "close_btn":    "ÎNCHIDE / CLOSE",
-        "about_btn":    "Despre",
-        "lbl_speed":    "Speed (Length Scale):",
-        "lbl_silence":  "Silence:",
-        "lbl_buffer":   "Buffer size:",
+        "title":              "UNIVERSAL TTS PRO",
+        "settings":           "Setări",
+        "speak":              "CITIRE RAPIDĂ",
+        "stop":               "STOP",
+        "input_lbl":          "Text de intrare:",
+        "out_lbl":            "Text curățat (ieșire):",
+        "import":             "Import .txt",
+        "fix":                "CORECTARE (CONVERSIE)",
+        "dict":               "✎ Dicționar",
+        "clear":              "Șterge",
+        "save_wav":           "Salvare WAV",
+        "save_opus":          "Salvare OPUS",
+        "status_ready":       "Gata / Ready",
+        "status_gen":         "Generare...",
+        "status_opus":        "Codificare Opus...",
+        "save_mod":           "SALVARE ÎN MODEL",
+        "close_btn":          "ÎNCHIDE",
+        "about_btn":          "Despre",
+        "lbl_speed":          "Viteză (Length Scale):",
+        "lbl_nscale":         "Scală zgomot (Noise Scale):",
+        "lbl_nwidth":         "Lățime zgomot (Noise Width):",
+        "lbl_silence":        "Durată pauză (silence):",
+        "lbl_buffer":         "Dimensiune buffer:",
+        "lbl_opus":           "Bitrate Opus:",
+        "lbl_vol":            "Normalizare volum (%):",
+        "st_title":           "🎙 SETĂRI SUPERTONIC",
+        "lbl_st_speed":       "Viteză (Speed):",
+        "lbl_st_speed_hint":  "Valoare mai mare = vorbire mai rapidă",
+        "lbl_st_quality":     "Calitate (total_steps, 1-12):",
+        "lbl_st_chunk":       "Lungime max. bloc (caractere):",
+        "lbl_current_voice":  "Voce selectată:",
+        "chk_phonetic":       "Corecție fonetică (Supertonic)",
+        "lbl_phonetic_rules": "Reguli fonetice:",
+        "lbl_phonetic_hint":  "Format: sursă:țintă, ... — fără '!': înlocuiește PESTE TOT (început/mijloc/sfârșit de cuvânt). '!' la final: înlocuiește PESTE TOT, EXCEPTÂND cazul în care litera următoare e o vocală a limbii curente (HU/EN/RO).",
     },
 }
 
@@ -957,9 +1030,9 @@ class App:
             vits_config = sherpa_onnx.OfflineTtsVitsModelConfig(
                 model=model_path, lexicon="", tokens=tokens_path,
                 data_dir=model_dir,
-                noise_scale=float(self.e_nscale.get()),
-                noise_scale_w=float(self.e_nw.get()),
-                length_scale=float(self.e_speed.get())
+                noise_scale=float(self._get_piper_config(model_name)["n_scale"]),
+                noise_scale_w=float(self._get_piper_config(model_name)["n_w"]),
+                length_scale=float(self._get_piper_config(model_name)["speed"])
             )
             model_config = sherpa_onnx.OfflineTtsModelConfig(
                 vits=vits_config, num_threads=4, debug=False)
@@ -974,7 +1047,12 @@ class App:
                 f"{traceback.format_exc()}")
             return False
 
-    def init_supertonic(self):
+    def init_supertonic(self, model_name=None):
+        # A model_nevet egyszer elmentjuk, hogy vegig konzisztens maradjon -
+        # meg akkor is, ha a felhasznalo kozben nyelvet/modellt valt.
+        current = model_name if model_name is not None else self.model_var.get()
+        if not self._is_supertonic(current):
+            return False
         if not SUPERTONIC_PKG_OK:
             self._show_error("Supertonic nem telepítve",
                 "pip install supertonic\nMajd indítsd újra a programot.")
@@ -1005,7 +1083,7 @@ class App:
                         return dp  # a mappa ahol a fajl van
                 return None
 
-            onnx_dir    = onnx_dir = st_root  # library maga keresi az onnx/ almappát
+            onnx_dir    = st_root  # library maga keresi az onnx/ almappát
             cache_dir   = st_root
             for dp, dn, _ in os.walk(st_root):
                 if ".cache" in dn:
@@ -1035,7 +1113,7 @@ class App:
                 except TypeError:
                     self.st_tts = SupertonicTTS(auto_download=False)
 
-            voice_name   = st_sdk_name(self.model_var.get())
+            voice_name   = st_sdk_name(current)
             self._st_style = self.st_tts.get_voice_style(voice_name=voice_name)
             return True
         except Exception as e:
@@ -1054,6 +1132,102 @@ class App:
                 f"SUPERTONIC_CACHE_DIR: {os.environ.get('SUPERTONIC_CACHE_DIR','')}\n\n"
                 f"{tb[:800]}")
             return False
+
+    def _apply_st_phonetic_rules(self, text, rules_str, lang=None):
+        """Fonetikus szabályok alkalmazása EGY menetben.
+
+        v1.3.5 — ÚJRATERVEZETT VISELKEDÉS (a korábbi \\b szóhatár-
+        megkötés megszűnt, mert az megakadályozta, hogy a csere a szó
+        BELSEJÉBEN (pl. "Jeruzsálem" közepén) is működjön):
+
+          - '!' JEL NÉLKÜL (pl. 'zs:zzs'): a minta MINDENÜTT lecserélődik
+            — szó elején, közepén, végén, feltétel nélkül.
+          - '!' JELLEL (pl. 'vas!:vash'): a minta MINDENÜTT lecserélődik,
+            KIVÉVE ha közvetlenül utána az adott nyelv magánhangzói közül
+            következik valamelyik (ekkor az az egy előfordulás kimarad).
+            A "melyik nyelv magánhangzói" kérdést a 'lang' paraméter dönti
+            el (LANGUAGE_VOWELS tábla) — így ugyanez a '!' logika magyar,
+            angol és román szövegre is helyesen működik, és bővíthető
+            további nyelvekre a LANGUAGE_VOWELS szótár kiegészítésével.
+
+        A korábbi verzió sorrendben alkalmazta a szabályokat, ami hibás
+        volt: az 'SZ' → 's' után a 'S' → 'sh' szabály az előző lépés
+        eredményét is módosította ('s' → 'sh'), így 'szia' → 'shia' lett.
+        Most is egyetlen regex-cserélés történik, a leghosszabb mintákkal
+        először.
+        """
+        vowels = LANGUAGE_VOWELS.get((lang or DEFAULT_VOWEL_LANG).lower(),
+                                      LANGUAGE_VOWELS[DEFAULT_VOWEL_LANG])
+        rules = []
+        for rule in rules_str.split(","):
+            if ":" in rule:
+                src, dst = rule.split(":", 1)
+                src, dst = src.strip(), dst.strip()
+                if src and dst:
+                    # '!' a forrás végén: negatív lookahead az adott nyelv
+                    # magánhangzóira — a keresés magára NEM szóhatárhoz
+                    # kötött, bárhol a szövegben/szóban aktiválódhat.
+                    if src.endswith("!"):
+                        src_base = src[:-1]
+                        rules.append((src_base, dst, True))
+                    else:
+                        rules.append((src, dst, False))
+        if not rules:
+            return text
+        # Leghosszabb minta először
+        rules.sort(key=lambda x: len(x[0]), reverse=True)
+        repl = {src.casefold(): dst for src, dst, _ in rules}
+        # Regex felépítése: minden mintához negatív lookahead ha kell.
+        # FONTOS: nincs többé \b (szóhatár) megkötés — a minta a szó
+        # BÁRMELY pozíciójában (eleje, közepe, vége) illeszkedhet.
+        parts = []
+        vowel_class = re.escape(vowels + vowels.upper())
+        for src, _, avoid_vowel in rules:
+            if avoid_vowel:
+                parts.append(rf"{re.escape(src)}(?![{vowel_class}])")
+            else:
+                parts.append(rf"{re.escape(src)}")
+        pattern = re.compile("|".join(parts), re.IGNORECASE)
+        return pattern.sub(lambda m: repl.get(m.group(0).casefold(), m.group(0)),
+                           text)
+
+    def _st_synthesize(self, text, lang, st_cfg):
+        """
+        Egységes, hibatűrő Supertonic synthesize() hívás.
+        Először a teljes (total_steps / max_chunk_length) paraméterkészlettel
+        próbálkozik; ha a telepített 'supertonic' csomag régebbi verziója
+        ezeket még nem ismeri (TypeError: unexpected keyword argument),
+        automatikusan visszavált az alap hívásra, hogy ne omoljon össze.
+
+        A fonetikus javítás itt kerül alkalmazásra — közvetlenül a szintézis
+        előtt —, így minden kóduúton (quick_speak, gen_proc) érvényesül,
+        függetlenül attól, hogy a felhasználó előtte rákattintott-e a
+        'JAVÍTÁS' gombra.
+        """
+        # Fonetikus javítás — a st_cfg use_phonetic flagje vezérli.
+        # Magyar módban is szükség lehet rá, mert a motor egyes magyar
+        # betűket rosszul ejt (pl. „s" helyett „sz" hangot ad).
+        # A felhasználó a szabályokat maga szerkesztheti a UI-ban.
+        if st_cfg.get("use_phonetic", False):
+            rules_str = st_cfg.get("phonetic_rules", "")
+            if rules_str:
+                text = self._apply_st_phonetic_rules(text, rules_str, lang=lang)
+        try:
+            return self.st_tts.synthesize(
+                text,
+                voice_style=self._st_style,
+                lang=lang,
+                speed=float(st_cfg["speed"]),
+                total_steps=int(st_cfg["total_steps"]),
+                max_chunk_length=int(st_cfg["max_chunk_length"]),
+            )
+        except TypeError:
+            return self.st_tts.synthesize(
+                text,
+                voice_style=self._st_style,
+                lang=lang,
+                speed=float(st_cfg["speed"]),
+            )
 
     # ----------------------------------------------------------------- utils
     def _show_error(self, title, message):
@@ -1181,6 +1355,22 @@ class App:
     def _is_supertonic(self, model_name=""):
         return str(model_name).startswith("ST: ")
 
+    def _st_lang_code(self):
+        """A Supertonic szintézishez (és a fonetikus '!' magánhangzó-
+        ellenőrzéshez) használt nyelvkód, a program aktuális UI nyelve
+        alapján.
+
+        JAVÍTVA v1.3.5: korábban a Román (RO) felület is mindig "en"
+        nyelvkódot küldött a Supertonic motornak — pedig a Supertonic
+        hivatalosan támogatja a románt is. Mostantól HU→"hu", RO→"ro",
+        minden más esetben "en".
+        """
+        if self.lang == "HU":
+            return "hu"
+        if self.lang == "RO":
+            return "ro"
+        return "en"
+
     def find_model_path(self, model_name):
         ext = get_data_path(os.path.join("models", model_name))
         if os.path.exists(ext): return ext
@@ -1254,12 +1444,13 @@ class App:
             ent.pack(side="left", padx=10)
             return lbl, ent
 
-        self.l_sp,  self.e_speed   = add_s("1.3")
-        self.l_ns,  self.e_nscale  = add_s("0.55")
-        self.l_nw,  self.e_nw      = add_s("0.6")
-        self.l_si,  self.e_silence = add_s("0.5")
-        self.l_op,  self.e_opus    = add_s("--bitrate 64")
-        self.l_bf,  self.e_buffer  = add_s("4096")
+        self.l_sp,  self.e_speed   = add_s(str(DEFAULT_PIPER_SETTINGS["speed"]))
+        self.l_ns,  self.e_nscale  = add_s(str(DEFAULT_PIPER_SETTINGS["n_scale"]))
+        self.l_nw,  self.e_nw      = add_s(str(DEFAULT_PIPER_SETTINGS["n_w"]))
+        self.l_si,  self.e_silence = add_s(str(DEFAULT_PIPER_SETTINGS["silence"]))
+        self.l_op,  self.e_opus    = add_s(DEFAULT_PIPER_SETTINGS["opus"])
+        self.l_bf,  self.e_buffer  = add_s(str(DEFAULT_PIPER_SETTINGS["buffer"]))
+        self.l_vn,  self.e_volume  = add_s(str(DEFAULT_PIPER_SETTINGS["volume_norm"]))
 
         self.btn_save_mod = tk.Button(self.sett_pnl, text="",
                                       command=self.save_model_settings,
@@ -1269,9 +1460,10 @@ class App:
         # ══════════ SUPERTONIC INLINE BEÁLLÍTÁSOK ══════════
         self.sett_pnl_st = tk.Frame(self.root, bg="#1e1e2e", bd=1,
                                     relief="solid", pady=5)
-        tk.Label(self.sett_pnl_st, text="🎙  SUPERTONIC BEÁLLÍTÁSAI / SETTINGS",
+        self.lbl_st_title = tk.Label(self.sett_pnl_st, text="🎙  SUPERTONIC BEÁLLÍTÁSAI / SETTINGS",
                  bg="#1e1e2e", fg="#ff88cc",
-                 font=("Arial", 9, "bold")).pack(pady=(4, 2))
+                 font=("Arial", 9, "bold"))
+        self.lbl_st_title.pack(pady=(4, 2))
         self.lbl_st_current = tk.Label(self.sett_pnl_st, text="",
                                        bg="#1e1e2e", fg="#888",
                                        font=("Arial", 8, "italic"))
@@ -1279,8 +1471,9 @@ class App:
 
         _f_sp = tk.Frame(self.sett_pnl_st, bg="#1e1e2e")
         _f_sp.pack(fill="x", padx=20, pady=3)
-        tk.Label(_f_sp, text="Higher speed = faster",
-                 bg="#1e1e2e", fg="#fff", width=28, anchor="w").pack(side="left")
+        self.lbl_st_speed_hint = tk.Label(_f_sp, text="Higher speed = faster",
+                 bg="#1e1e2e", fg="#fff", width=28, anchor="w")
+        self.lbl_st_speed_hint.pack(side="left")
         self.lbl_st_speed_val = tk.Label(_f_sp, text="1.00x",
                                          bg="#1e1e2e", fg="#ffaa00",
                                          font=("Arial", 9, "bold"), width=6)
@@ -1298,16 +1491,51 @@ class App:
         def _add_st_field(label_text, default):
             f = tk.Frame(self.sett_pnl_st, bg="#1e1e2e")
             f.pack(fill="x", padx=20, pady=1)
-            tk.Label(f, text=label_text, bg="#1e1e2e", fg="#fff",
-                     width=28, anchor="w").pack(side="left")
+            lbl = tk.Label(f, text=label_text, bg="#1e1e2e", fg="#fff",
+                     width=28, anchor="w")
+            lbl.pack(side="left")
             ent = tk.Entry(f, width=25)
             ent.insert(0, default)
             ent.pack(side="left", padx=10)
-            return ent
+            return lbl, ent
 
-        self.e_st_silence = _add_st_field("Silence (sec):",         "0.5")
-        self.e_st_opus    = _add_st_field("Opus Bitrate:",          "--bitrate 64")
-        self.e_st_buffer  = _add_st_field("Buffer size:",           "4096")
+        self.lbl_st_steps,   self.e_st_steps   = _add_st_field("Quality (total_steps, 1-12):", str(DEFAULT_ST_SETTINGS["total_steps"]))
+        self.lbl_st_chunk_l, self.e_st_chunk   = _add_st_field("Max chunk length (chars):",    str(DEFAULT_ST_SETTINGS["max_chunk_length"]))
+        self.lbl_st_silence, self.e_st_silence = _add_st_field("Silence (sec):",         str(DEFAULT_ST_SETTINGS["silence"]))
+        self.lbl_st_opus,    self.e_st_opus    = _add_st_field("Opus Bitrate:",          DEFAULT_ST_SETTINGS["opus"])
+        self.lbl_st_buffer,  self.e_st_buffer  = _add_st_field("Buffer size:",           str(DEFAULT_ST_SETTINGS["buffer"]))
+        self.lbl_st_volume,  self.e_st_volume  = _add_st_field("Hangerő normalizálás (%):", str(DEFAULT_ST_SETTINGS["volume_norm"]))
+
+        # Fonetikus korrekciók — alapértelmezetten kikapcsolva
+        self.var_st_phonetic = tk.BooleanVar(value=DEFAULT_ST_SETTINGS["use_phonetic"])
+        _f_ph1 = tk.Frame(self.sett_pnl_st, bg="#1e1e2e")
+        _f_ph1.pack(fill="x", padx=20, pady=(6, 2))
+        self.chk_st_phonetic = tk.Checkbutton(
+            _f_ph1, text="", variable=self.var_st_phonetic,
+            bg="#1e1e2e", fg="#00d4ff", selectcolor="#2a2a3e",
+            activebackground="#1e1e2e", activeforeground="#00d4ff"
+        )
+        self.chk_st_phonetic.pack(side="left")
+        _f_ph2 = tk.Frame(self.sett_pnl_st, bg="#1e1e2e")
+        _f_ph2.pack(fill="x", padx=20, pady=2)
+        self.lbl_st_phonetic_rules = tk.Label(
+            _f_ph2, text="", bg="#1e1e2e", fg="#fff", width=28, anchor="w"
+        )
+        self.lbl_st_phonetic_rules.pack(side="left")
+        self.e_st_phonetic_rules = tk.Entry(_f_ph2, width=35)
+        self.e_st_phonetic_rules.insert(0, DEFAULT_ST_SETTINGS["phonetic_rules"])
+        self.e_st_phonetic_rules.pack(side="left", padx=10)
+
+        # Rövid, mindig látható emlékeztető a '!' szabály működéséről
+        # (a teljes leírás a Súgó / Help ablakban található).
+        _f_ph3 = tk.Frame(self.sett_pnl_st, bg="#1e1e2e")
+        _f_ph3.pack(fill="x", padx=20, pady=(0, 4))
+        self.lbl_st_phonetic_hint = tk.Label(
+            _f_ph3, text="", bg="#1e1e2e", fg="#888aaa",
+            font=("Arial", 8, "italic"), anchor="w", justify="left",
+            wraplength=760
+        )
+        self.lbl_st_phonetic_hint.pack(side="left", fill="x", expand=True)
 
         self.btn_save_st = tk.Button(self.sett_pnl_st,
                                      text="💾 MENTÉS MODELBE",
@@ -1315,6 +1543,17 @@ class App:
                                      bg="#00a896", fg="#fff",
                                      font=("Arial", 9, "bold"))
         self.btn_save_st.pack(pady=5)
+
+        # ÚJ v1.3.5: egy gombbal az AKTUÁLIS panel-értékek minden
+        # Supertonic hangra (Alex, James, Robert, ... Emily) ráírhatók,
+        # nem csak a kiválasztottra.
+        self.btn_save_st_all = tk.Button(
+            self.sett_pnl_st,
+            text="💾 MENTÉS MINDEN SUPERTONIC HANGRA",
+            command=self.save_supertonic_settings_all,
+            bg="#0077b6", fg="#fff",
+            font=("Arial", 9, "bold"))
+        self.btn_save_st_all.pack(pady=(0, 8))
         # ══════════ END SUPERTONIC PANEL ══════════
 
         self.lbl_input_title = tk.Label(self.root, text="",
@@ -1549,10 +1788,13 @@ class App:
 
     def refresh_ui(self):
         l = LANGS.get(self.lang, LANGS["EN"])
+        
+        # Gombok és címkék frissítése
         if hasattr(self, 'btn_settings_pp'):
             self.btn_settings_pp.config(text="⚙ Piper")
         if hasattr(self, 'btn_settings_st'):
-            self.btn_settings_st.config(text="⚙ Supertronic")
+            self.btn_settings_st.config(text="⚙ Supertonic")
+            
         self.btn_speak.config(text=l["speak"])
         self.btn_save_mod.config(text=l["save_mod"])
         self.lbl_input_title.config(text=l["input_lbl"])
@@ -1564,12 +1806,49 @@ class App:
         self.btn_wav.config(text=l["save_wav"])
         self.btn_opus.config(text=l["save_opus"])
         self.lbl_status.config(text=l["status_ready"])
-        self.l_sp.config(text=l.get("lbl_speed",   "Speed:"))
-        self.l_ns.config(text="Noise Scale:")
-        self.l_nw.config(text="Noise Width:")
+        
+        # Piper panel mezők
+        self.l_sp.config(text=l.get("lbl_speed", "Speed:"))
+        self.l_ns.config(text=l.get("lbl_nscale", "Noise Scale:"))
+        self.l_nw.config(text=l.get("lbl_nwidth", "Noise Width:"))
         self.l_si.config(text=l.get("lbl_silence", "Silence:"))
-        self.l_bf.config(text=l.get("lbl_buffer",  "Buffer:"))
-        self.l_op.config(text="Opus Bitrate:")
+        self.l_bf.config(text=l.get("lbl_buffer", "Buffer:"))
+        self.l_op.config(text=l.get("lbl_opus", "Opus Bitrate:"))
+        self.l_vn.config(text=l.get("lbl_vol", "Volume Norm (%):"))
+        
+        # Supertonic panel mezők
+        # (JAVÍTVA v1.3.4: korábban ezek a feliratok nem frissültek
+        #  nyelvváltáskor, és a "Hangerő normalizálás" felirat EN/RO
+        #  módban is magyarul maradt. Most minden ST mező a LANGS
+        #  szótárból kapja a feliratát, akárcsak a Piper panel.)
+        if hasattr(self, "lbl_st_title"):
+            self.lbl_st_title.config(text=l.get("st_title", "🎙 SUPERTONIC SETTINGS"))
+        if hasattr(self, "lbl_st_current"):
+            # csak a "címke" részt frissítjük, az aktuális hang nevét
+            # a _load_supertonic_settings() írja utána vissza
+            self.lbl_st_current.config(text=l.get("lbl_current_voice", "Current voice:"))
+        if hasattr(self, "lbl_st_speed_hint"):
+            self.lbl_st_speed_hint.config(text=l.get("lbl_st_speed_hint", "Higher speed = faster"))
+        if hasattr(self, "lbl_st_steps"):
+            self.lbl_st_steps.config(text=l.get("lbl_st_quality", "Quality (total_steps, 1-12):"))
+        if hasattr(self, "lbl_st_chunk_l"):
+            self.lbl_st_chunk_l.config(text=l.get("lbl_st_chunk", "Max chunk length (chars):"))
+        if hasattr(self, "lbl_st_silence"):
+            self.lbl_st_silence.config(text=l.get("lbl_silence", "Silence:"))
+        if hasattr(self, "lbl_st_opus"):
+            self.lbl_st_opus.config(text=l.get("lbl_opus", "Opus Bitrate:"))
+        if hasattr(self, "lbl_st_buffer"):
+            self.lbl_st_buffer.config(text=l.get("lbl_buffer", "Buffer size:"))
+        if hasattr(self, "lbl_st_volume"):
+            self.lbl_st_volume.config(text=l.get("lbl_vol", "Volume Normalization (%):"))
+        if hasattr(self, "chk_st_phonetic"):
+            self.chk_st_phonetic.config(text=l["chk_phonetic"])
+        if hasattr(self, "lbl_st_phonetic_rules"):
+            self.lbl_st_phonetic_rules.config(text=l["lbl_phonetic_rules"])
+        if hasattr(self, "lbl_st_phonetic_hint"):
+            self.lbl_st_phonetic_hint.config(text=l.get("lbl_phonetic_hint", ""))
+        if hasattr(self, "btn_save_st"):
+            self.btn_save_st.config(text=l["save_mod"])  # <-- ITT JAVÍTVA (egyetlen zárójel maradt)
 
     # ────────────────────────── szám → szó konverterek ──────────────────────
     def _num_to_text_hu(self, n):
@@ -1864,6 +2143,8 @@ class App:
                 if getattr(self, 'settings_visible_st', False):
                     self.sett_pnl_st.pack_forget()
                     self.settings_visible_st = False
+                # FONTOS: minden Piper modell a saját beállításait kapja vissza.
+                self._load_piper_settings()
 
 
     def toggle_settings_st(self):
@@ -1887,81 +2168,210 @@ class App:
 
     def _load_supertonic_settings(self):
         """Betölti a kiválasztott ST hang beállításait a panelba."""
-        cfg = self._get_st_config()
+        cfg = self._get_st_config(use_live_ui=False)
         current = self.model_var.get()
-        self.lbl_st_current.config(text=f"Current voice:  {current}")
+        l = LANGS.get(self.lang, LANGS["EN"])
+        self.lbl_st_current.config(
+            text=f"{l.get('lbl_current_voice', 'Current voice:')}  {current}")
         try:
             self.scale_st_speed.set(float(cfg["speed"]))
         except Exception:
             self.scale_st_speed.set(1.0)
         self.lbl_st_speed_val.config(
             text=f"{float(self.scale_st_speed.get()):.2f}x")
+        self.e_st_steps.delete(0, "end")
+        self.e_st_steps.insert(0, str(cfg["total_steps"]))
+        self.e_st_chunk.delete(0, "end")
+        self.e_st_chunk.insert(0, str(cfg["max_chunk_length"]))
         self.e_st_silence.delete(0, "end")
         self.e_st_silence.insert(0, str(cfg["silence"]))
         self.e_st_opus.delete(0, "end")
         self.e_st_opus.insert(0, str(cfg["opus"]))
         self.e_st_buffer.delete(0, "end")
         self.e_st_buffer.insert(0, str(cfg["buffer"]))
+        self.e_st_volume.delete(0, "end")
+        self.e_st_volume.insert(0, str(cfg["volume_norm"]))
+        if hasattr(self, "var_st_phonetic"):
+            # A mentett érték szerint töltjük be (első indításkor, ha még
+            # nincs mentett fájl, a cfg a DEFAULT_ST_SETTINGS['use_phonetic']
+            # (False) értékét adja vissza — utána mindig a legutóbb
+            # mentett kapcsoló-állapotot követi).
+            self.var_st_phonetic.set(bool(cfg.get("use_phonetic", False)))
+        if hasattr(self, "e_st_phonetic_rules"):
+            self.e_st_phonetic_rules.delete(0, "end")
+            self.e_st_phonetic_rules.insert(0, str(cfg.get("phonetic_rules", DEFAULT_ST_SETTINGS["phonetic_rules"])))
 
     def save_supertonic_settings(self):
-        """Elmenti a Supertonic panel értékeit a modellhez tartozó JSON-ba."""
+        """Elmenti a Supertonic panel értékeit a kiválasztott hang saját JSON fájljába."""
         current = self.model_var.get()
         if not self._is_supertonic(current):
-            messagebox.showwarning("Hiba",
-                "Nem Supertonic hang van kiválasztva.")
+            messagebox.showwarning("Hiba", "Nem Supertonic hang van kiválasztva.")
             return
         try:
-            settings = {
-                "speed":   float(self.scale_st_speed.get()),
-                "silence": float(self.e_st_silence.get() or 0.5),
-                "opus":    self.e_st_opus.get().strip() or "--bitrate 64",
-                "buffer":  int(self.e_st_buffer.get() or 4096),
-            }
-        except ValueError as e:
-            messagebox.showerror("Érvénytelen érték", f"Hibás szám: {e}")
-            return
-        model_base = os.path.splitext(current)[0]
-        path = get_data_path(os.path.join("models", model_base + "_st.json"))
-        try:
-            with open(path, "w", encoding="utf-8") as f:
-                json.dump(settings, f, indent=4, ensure_ascii=False)
-            
-            if self.settings_visible_st:
-                self.sett_pnl_st.pack_forget()
-                self.settings_visible_st = False
-            
-            # ITT A JAVÍTÁS:
-            msg = (f"Beállítások mentve a(z) '{current}' hanghoz!\n"
-                   f"→ {os.path.basename(path)}")
-            
-            messagebox.showinfo("Siker", msg)
-            
-        except Exception as e:
-            messagebox.showerror("Hiba", f"Mentés sikertelen: {e}")
+            steps = int(self.e_st_steps.get() or DEFAULT_ST_SETTINGS["total_steps"])
+            if not (1 <= steps <= 12):
+                raise ValueError("total_steps értéke 1 és 12 között legyen")
+            chunk = int(self.e_st_chunk.get() or DEFAULT_ST_SETTINGS["max_chunk_length"])
+            if chunk < 10:
+                raise ValueError("max_chunk_length legalább 10 legyen")
+            buffer_size = int(self.e_st_buffer.get() or DEFAULT_ST_SETTINGS["buffer"])
+            if buffer_size < 256:
+                raise ValueError("Buffer size legalább 256 legyen")
+            volume_norm = float(self.e_st_volume.get() or DEFAULT_ST_SETTINGS["volume_norm"])
+            if not (0 <= volume_norm <= 100):
+                raise ValueError("Hangerő normalizálás 0 és 100% között legyen")
+            silence_val = float(self.e_st_silence.get() or DEFAULT_ST_SETTINGS["silence"])
+            if silence_val < 0:
+                raise ValueError("A csend hossza nem lehet negatív")
 
-    def _get_st_config(self):
-        """Visszaadja az aktuális ST hang beállításait (JSON vagy default)."""
-        cfg = {"speed": 1.0, "silence": 0.5,
-               "opus": "--bitrate 64", "buffer": 4096}
-        current = self.model_var.get()
+            cfg_data = {
+                "speed": float(self.scale_st_speed.get()),
+                "total_steps": steps,
+                "max_chunk_length": chunk,
+                "silence": silence_val,
+                "opus": self.e_st_opus.get() or DEFAULT_ST_SETTINGS["opus"],
+                "buffer": buffer_size,
+                "volume_norm": volume_norm,
+                "use_phonetic": bool(self.var_st_phonetic.get()),
+                "phonetic_rules": self.e_st_phonetic_rules.get(),
+            }
+
+            cfg_path = self._st_config_path(current)
+            with open(cfg_path, "w", encoding="utf-8") as f:
+                json.dump(cfg_data, f, indent=2)
+
+            messagebox.showinfo("Siker", f"Supertonic beállítások elmentve:\n{cfg_path}")
+        except Exception as e:
+            messagebox.showerror("Hiba a mentés során", str(e))
+
+    def save_supertonic_settings_all(self):
+        """ÚJ v1.3.5: a panelban jelenleg beállított értékeket ELMENTI
+        MINDEN Supertonic hang (Alex, James, Robert, Sam, Daniel, Sarah,
+        Lily, Jessica, Olivia, Emily) saját JSON konfigurációs fájljába.
+
+        Így nem kell egyenként végigkattintani mind a 10 hangot ahhoz,
+        hogy pl. a total_steps=10 / max_chunk_length=120 / silence=0.3 /
+        buffer=8192 / volume_norm=70 beállítás mindegyikre érvényes legyen
+        — elég egyszer beállítani (bármelyik hangnál), és erre a gombra
+        kattintani.
+
+        A validáció megegyezik a save_supertonic_settings()-ével.
+        """
+        try:
+            steps = int(self.e_st_steps.get() or DEFAULT_ST_SETTINGS["total_steps"])
+            if not (1 <= steps <= 12):
+                raise ValueError("total_steps értéke 1 és 12 között legyen")
+            chunk = int(self.e_st_chunk.get() or DEFAULT_ST_SETTINGS["max_chunk_length"])
+            if chunk < 10:
+                raise ValueError("max_chunk_length legalább 10 legyen")
+            buffer_size = int(self.e_st_buffer.get() or DEFAULT_ST_SETTINGS["buffer"])
+            if buffer_size < 256:
+                raise ValueError("Buffer size legalább 256 legyen")
+            volume_norm = float(self.e_st_volume.get() or DEFAULT_ST_SETTINGS["volume_norm"])
+            if not (0 <= volume_norm <= 100):
+                raise ValueError("Hangerő normalizálás 0 és 100% között legyen")
+            silence_val = float(self.e_st_silence.get() or DEFAULT_ST_SETTINGS["silence"])
+            if silence_val < 0:
+                raise ValueError("A csend hossza nem lehet negatív")
+
+            # A "speed" (sebesség) szándékosan MINDEN hangnál egyedi marad:
+            # nem a csúszka aktuális állását írjuk rá minden hangra, hanem
+            # az adott hang korábban elmentett (vagy alapértelmezett)
+            # sebességét őrizzük meg — csak a minőségi/technikai
+            # paramétereket egységesítjük.
+            base_cfg = {
+                "total_steps": steps,
+                "max_chunk_length": chunk,
+                "silence": silence_val,
+                "opus": self.e_st_opus.get() or DEFAULT_ST_SETTINGS["opus"],
+                "buffer": buffer_size,
+                "volume_norm": volume_norm,
+                "use_phonetic": bool(self.var_st_phonetic.get()),
+                "phonetic_rules": self.e_st_phonetic_rules.get(),
+            }
+
+            saved, errors = [], []
+            for voice_display_name in SUPERTONIC_VOICES:
+                try:
+                    existing = self._get_st_config(model_name=voice_display_name,
+                                                    use_live_ui=False)
+                    cfg_data = dict(base_cfg)
+                    cfg_data["speed"] = float(existing.get("speed", 1.0))
+                    cfg_path = self._st_config_path(voice_display_name)
+                    with open(cfg_path, "w", encoding="utf-8") as f:
+                        json.dump(cfg_data, f, indent=2)
+                    saved.append(st_sdk_name(voice_display_name))
+                except Exception as e_inner:
+                    errors.append(f"{voice_display_name}: {e_inner}")
+
+            msg = f"Beállítások elmentve {len(saved)} Supertonic hangra:\n" \
+                  f"{', '.join(saved)}"
+            if errors:
+                msg += "\n\nHiba történt ezeknél:\n" + "\n".join(errors)
+                messagebox.showwarning("Részben sikeres", msg)
+            else:
+                messagebox.showinfo("Siker", msg)
+        except Exception as e:
+            messagebox.showerror("Hiba a mentés során", str(e))
+
+    def _st_config_path(self, model_name=None):
+        """Visszaadja a Supertonic hang saját beállítófájljának útvonalát.
+        A mentés és a betöltés is ezt használja, így mindig konzisztens."""
+        current = model_name if model_name is not None else self.model_var.get()
+        st_key = st_sdk_name(current)
+        return get_data_path(os.path.join("models", f"st_cfg_{st_key}.json"))
+
+    def _get_st_config(self, model_name=None, use_live_ui=True):
+        """Visszaadja az aktuális Supertonic hang saját beállításait (JSON vagy default).
+
+        use_live_ui=True (alapértelmezett): ha a beállítópanel widgetjei már
+        léteznek, a fonetikus javítás be/ki kapcsolóját és a szabályok
+        szövegét a PANEL AKTUÁLIS (élő) állapotából olvassuk ki — így a
+        felhasználó a mentés gomb megnyomása NÉLKÜL is tesztelheti a
+        felolvasásnál a kapcsoló átállítását (quick_speak, fájlgenerálás).
+        use_live_ui=False: kizárólag a mentett JSON fájlból (vagy hiányában
+        a DEFAULT_ST_SETTINGS-ből) olvasunk — ezt használja a
+        _load_supertonic_settings(), hogy a panel megnyitásakor mindig a
+        LEGUTÓBB MENTETT állapot töltődjön be, ne az előző hang élő
+        panel-állapota.
+        """
+        cfg = dict(DEFAULT_ST_SETTINGS)
+        current = model_name if model_name is not None else self.model_var.get()
         if not self._is_supertonic(current):
             return cfg
-        model_base = os.path.splitext(current)[0]
-        path = get_data_path(os.path.join("models", model_base + "_st.json"))
+        path = self._st_config_path(current)
         if os.path.exists(path):
             try:
                 with open(path, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                cfg["speed"]   = float(data.get("speed",   cfg["speed"]))
-                cfg["silence"] = float(data.get("silence", cfg["silence"]))
-                cfg["opus"]    = str(data.get("opus",      cfg["opus"]))
-                cfg["buffer"]  = int(data.get("buffer",    cfg["buffer"]))
+                cfg["speed"]            = float(data.get("speed", cfg["speed"]))
+                cfg["total_steps"]      = int(data.get("total_steps", cfg["total_steps"]))
+                cfg["max_chunk_length"] = int(data.get("max_chunk_length", cfg["max_chunk_length"]))
+                cfg["silence"]          = float(data.get("silence", cfg["silence"]))
+                cfg["opus"]             = str(data.get("opus", cfg["opus"]))
+                cfg["buffer"]           = int(data.get("buffer", cfg["buffer"]))
+                cfg["volume_norm"]      = float(data.get("volume_norm", cfg["volume_norm"]))
+                cfg["phonetic_rules"]   = str(data.get("phonetic_rules", cfg["phonetic_rules"]))
+                cfg["use_phonetic"]     = bool(data.get("use_phonetic", cfg["use_phonetic"]))
             except Exception:
                 pass
+        if use_live_ui:
+            if hasattr(self, "var_st_phonetic"):
+                cfg["use_phonetic"] = self.var_st_phonetic.get()
+            if hasattr(self, "e_st_phonetic_rules"):
+                cfg["phonetic_rules"] = self.e_st_phonetic_rules.get()
         return cfg
 
-
     def toggle_lang(self):
+        # Leallitja a folyamatban levo lejatszast, hogy a hatterszalak
+        # ne probaljak meg ujrainicializalni a Supertonic motort a
+        # mar lecserelt (Piper) modellnel -- ami rengeteg hibablakot
+        # eredmenyezne.
+        if getattr(self, 'is_speaking', False) or getattr(self, '_timer_running', False):
+            self.stop_all()
+            # Rovid varakozas, hogy a hatterszalak tenyleg lealljanak
+            # (stop_event set + model valtas versenyfeltetel elkerulese)
+            self.root.update()
         cycle = {"HU":"EN","EN":"RO","RO":"HU"}
         self.lang = cycle.get(self.lang,"HU")
         self.btn_lang.config(text=self.lang)
@@ -1987,19 +2397,97 @@ class App:
                                before=self.lbl_input_title)
         self.settings_visible = not self.settings_visible
 
+    def _piper_config_path(self, model_name=None):
+        """Az aktuális Piper modellhez tartozó külön beállításfájl."""
+        current = model_name if model_name is not None else self.model_var.get()
+        model_base = os.path.splitext(current)[0]
+        return get_data_path(os.path.join("models", model_base + ".json"))
+
+    def _get_piper_config(self, model_name=None):
+        """Betölti az aktuális Piper hang saját beállításait; hiányzó mezőknél defaultot használ."""
+        cfg = dict(DEFAULT_PIPER_SETTINGS)
+        current = model_name if model_name is not None else self.model_var.get()
+        if not current or self._is_supertonic(current):
+            return cfg
+        path = self._piper_config_path(current)
+        if os.path.exists(path):
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                cfg["speed"]       = float(data.get("speed", cfg["speed"]))
+                cfg["n_scale"]     = float(data.get("n_scale", cfg["n_scale"]))
+                cfg["n_w"]         = float(data.get("n_w", cfg["n_w"]))
+                cfg["silence"]     = float(data.get("silence", cfg["silence"]))
+                cfg["opus"]        = str(data.get("opus", cfg["opus"]))
+                cfg["buffer"]      = int(data.get("buffer", cfg["buffer"]))
+                cfg["volume_norm"] = float(data.get("volume_norm", cfg["volume_norm"]))
+            except Exception:
+                pass
+        return cfg
+
+    def _load_piper_settings(self):
+        """A kiválasztott Piper modell saját értékeit tölti a Piper panelbe."""
+        if not hasattr(self, "e_speed") or self._is_supertonic(self.model_var.get()):
+            return
+        cfg = self._get_piper_config()
+        for ent, value in (
+            (self.e_speed, cfg["speed"]),
+            (self.e_nscale, cfg["n_scale"]),
+            (self.e_nw, cfg["n_w"]),
+            (self.e_silence, cfg["silence"]),
+            (self.e_opus, cfg["opus"]),
+            (self.e_buffer, cfg["buffer"]),
+            (self.e_volume, cfg["volume_norm"]),
+        ):
+            ent.delete(0, "end")
+            ent.insert(0, str(value))
+        if hasattr(self, "lbl_status"):
+            self.lbl_status.config(
+                text=f"🔊 Piper beállítás betöltve: {self.model_var.get()}",
+                fg="#ffcc00")
+
     def save_model_settings(self):
-        settings = {"speed":self.e_speed.get(),"n_scale":self.e_nscale.get(),
-                    "n_w":self.e_nw.get(),"silence":self.e_silence.get(),
-                    "opus":self.e_opus.get()}
-        model_base = os.path.splitext(self.model_var.get())[0]
-        path = get_data_path(os.path.join("models", model_base+".json"))
+        """Az aktuális Piper hang beállításait kizárólag annak saját JSON fájljába menti."""
+        current = self.model_var.get()
+        if not current or self._is_supertonic(current):
+            messagebox.showwarning("Hiba", "Nem Piper hang van kiválasztva.")
+            return
         try:
+            speed = float(self.e_speed.get() or DEFAULT_PIPER_SETTINGS["speed"])
+            n_scale = float(self.e_nscale.get() or DEFAULT_PIPER_SETTINGS["n_scale"])
+            n_w = float(self.e_nw.get() or DEFAULT_PIPER_SETTINGS["n_w"])
+            silence = float(self.e_silence.get() or DEFAULT_PIPER_SETTINGS["silence"])
+            buffer_size = int(self.e_buffer.get() or DEFAULT_PIPER_SETTINGS["buffer"])
+            volume_norm = float(self.e_volume.get() or DEFAULT_PIPER_SETTINGS["volume_norm"])
+            if buffer_size < 256:
+                raise ValueError("Buffer size legalább 256 legyen")
+            if not (0 <= volume_norm <= 100):
+                raise ValueError("Hangerő normalizálás 0 és 100% között legyen")
+            settings = {
+                "speed": speed,
+                "n_scale": n_scale,
+                "n_w": n_w,
+                "silence": silence,
+                "opus": self.e_opus.get().strip() or DEFAULT_PIPER_SETTINGS["opus"],
+                "buffer": buffer_size,
+                "volume_norm": volume_norm,
+            }
+        except ValueError as e:
+            messagebox.showerror("Érvénytelen érték", f"Hibás beállítás: {e}")
+            return
+
+        path = self._piper_config_path(current)
+        try:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
             with open(path, "w", encoding="utf-8") as f:
-                json.dump(settings, f, indent=4)
+                json.dump(settings, f, indent=4, ensure_ascii=False)
             self.tts = None
-            if hasattr(self,'settings_visible') and self.settings_visible:
+            if hasattr(self, "settings_visible") and self.settings_visible:
                 self.toggle_settings()
-            messagebox.showinfo("Siker", "Beállítások mentve és alkalmazva!")
+            messagebox.showinfo(
+                "Siker",
+                f"Beállítások mentve a(z) '{current}' hanghoz!\n→ {os.path.basename(path)}"
+            )
         except Exception as e:
             messagebox.showerror("Hiba", f"Mentés sikertelen: {e}")
 
@@ -2156,6 +2644,7 @@ class App:
                 except Exception: pass
                 return m.group(0)
             text = re.sub(r'(?<![.,\d])(\d+)(?![.,]\d)(?!\d)', replace_remaining, text)
+
         self.output_text.delete("1.0","end")
         self.output_text.insert("1.0",text)
 
@@ -2184,7 +2673,7 @@ class App:
             self.stop_all(); self.root.after(50, self.quick_speak); return
         selected = self.model_var.get()
         if self._is_supertonic(selected):
-            if not self.init_supertonic(): return
+            if not self.init_supertonic(selected): return
         else:
             if self.tts is None:
                 if not self.init_sherpa(): return
@@ -2209,26 +2698,24 @@ class App:
         self.stop_event = threading.Event()
         self.is_speaking = True
         audio_queue = queue.Queue(maxsize=5)
-        use_st  = self._is_supertonic(selected)
-        st_lang = "hu" if self.lang == "HU" else "en"
+        job_model = selected
+        use_st  = self._is_supertonic(job_model)
+        st_lang = self._st_lang_code()
         def producer():
             for i in range(start_idx, len(sentences)):
                 if self.stop_event.is_set(): break
+                if self.model_var.get() != job_model: break
                 try:
                     if use_st:
                         if self._st_style is None:
-                            self.init_supertonic()
+                            if not self.init_supertonic(job_model): break
                         st_cfg = self._get_st_config()
-                        wav, _ = self.st_tts.synthesize(
-                            sentences[i],
-                            voice_style=self._st_style,
-                            lang=st_lang,
-                            speed=float(st_cfg["speed"])
-                        )
+                        wav, _ = self._st_synthesize(sentences[i], st_lang, st_cfg)
                         sr = getattr(self.st_tts,'sample_rate',24000)
                         samples = wav.flatten().tolist() if hasattr(wav,'flatten') else list(wav)
                         audio_queue.put((samples,sr,i,sentences[i]))
                     else:
+                        if self.tts is None: break
                         audio = self.tts.generate(sentences[i])
                         if audio and audio.samples:
                             audio_queue.put((audio.samples,audio.sample_rate,i,sentences[i]))
@@ -2248,9 +2735,25 @@ class App:
                         self._bar_set(p),
                         self.lbl_status.config(
                             text=f"Olvasás: {idx+1}/{len(sentences)}", fg="lightgreen")])
-                    sd.play(np.array(samples,dtype=np.float32), samplerate=rate)
+                    samples = self._normalize_samples(samples, self._current_audio_volume_norm())
+                    # JAVÍTÁS v1.3.5: élő felolvasásnál (sd.play) egyes
+                    # hangkártya-meghajtók (főleg WASAPI Windows alatt) a
+                    # lejátszás végét néhány tized másodperccel a valódi
+                    # audio-adatok vége ELŐTT zárják le, ha a puffer/blokk
+                    # pont a mondat legvégén fut ki — ez okozza a "szóvégi
+                    # elharapás" jelenséget, ami a mentett WAV/OPUS fájlban
+                    # NEM jelentkezik (ott a teljes minta-tömb egyben,
+                    # csonkítás nélkül kerül a fájlba). Egy rövid, néma
+                    # "farok" hozzáfűzésével a lejátszott mintákhoz a
+                    # hangkártyának ideje van teljesen kiadni az utolsó
+                    # valódi hangokat is, mielőtt a stream lezárul.
+                    pad_samples = int(rate * 0.15)  # 150 ms néma "biztonsági" farok
+                    if pad_samples > 0:
+                        samples = list(samples) + [0.0] * pad_samples
+                    sd.play(np.array(samples,dtype=np.float32), samplerate=rate,
+                            blocksize=self._current_audio_buffer_size())
                     sd.wait()
-                except: continue
+                except Exception: continue
             self.is_speaking = False
             self.root.after(0, lambda: [self._clear_all_highlights(), self._bar_stop()])
         threading.Thread(target=producer, daemon=True).start()
@@ -2269,7 +2772,7 @@ class App:
         try:
             self.input_text.tag_remove("active_sentence","1.0",tk.END)
             self.output_text.tag_remove("active_sentence","1.0",tk.END)
-        except: pass
+        except Exception: pass
 
     def _highlight_sentence(self, widget, full_text):
         self._clear_highlight()
@@ -2283,6 +2786,44 @@ class App:
     def _clear_highlight(self):
         try: self.output_text.tag_remove(self._hl_tag,"1.0","end")
         except Exception: pass
+
+    # ──────────────────────────── hangerő / normalizálás ─────────────────────
+    def _normalize_samples(self, samples, percent):
+        """Peak-normalizálás a beállított százalékra (0..100%)."""
+        if not samples:
+            return samples
+        try:
+            target = max(0.0, min(100.0, float(percent))) / 100.0
+        except Exception:
+            target = 0.70
+        if target <= 0:
+            return [0.0] * len(samples)
+        arr = np.asarray(samples, dtype=np.float32)
+        peak = float(np.max(np.abs(arr))) if arr.size else 0.0
+        if peak <= 1e-12:
+            return arr.tolist()
+        return (arr * (target / peak)).clip(-1.0, 1.0).tolist()
+
+    def _current_audio_volume_norm(self):
+        """Az aktuális hangmodellhez tartozó hangerő-normalizálás."""
+        if self._is_supertonic(self.model_var.get()):
+            return self._get_st_config()["volume_norm"]
+        return self._get_piper_config()["volume_norm"]
+
+    def _current_audio_buffer_size(self):
+        """Az aktuális hangmodellhez tartozó lejátszási puffer (buffer) méret.
+
+        JAVÍTVA v1.3.4: korábban a 'Buffer size' mező el lett mentve és
+        visszatöltve, de a lejátszásnál (sd.play) sehol nem lett ténylegesen
+        felhasználva — vagyis a beállításnak semmilyen hatása nem volt.
+        Most a lejátszó stream blokkméreteként (blocksize) érvényesül.
+        """
+        try:
+            if self._is_supertonic(self.model_var.get()):
+                return int(self._get_st_config()["buffer"])
+            return int(self._get_piper_config()["buffer"])
+        except Exception:
+            return 4096
 
     # ──────────────────────────── fájl generálás ────────────────────────────
     def start_gen(self, is_opus):
@@ -2304,17 +2845,17 @@ class App:
                 return
         selected = self.model_var.get()
         if self._is_supertonic(selected):
-            if not self.init_supertonic(): return
+            if not self.init_supertonic(selected): return
         else:
             if not self.init_sherpa(): return
         self._total_chars = len(txt)
         self.lbl_charcount.config(
             text=f"Karakter: {self._total_chars:,}".replace(",","\u00a0"), fg="#00d4ff")
+        self.stop_event = threading.Event()
         self._start_conv_timer()
         threading.Thread(target=self.gen_proc, args=(txt,is_opus), daemon=True).start()
 
     def gen_proc(self, txt, is_opus):
-        if hasattr(self,'stop_event'): self.stop_event.clear()
         try:
             self.root.after(0, lambda: self.lbl_status.config(
                 text=LANGS[self.lang]["status_gen"], fg="yellow"))
@@ -2324,31 +2865,29 @@ class App:
             sentences   = [s.strip() for s in re.split(r'(?<=[.!?…])\s+',txt) if s.strip()]
             all_samples = []
             sample_rate = 22050
-            use_st  = self._is_supertonic(self.model_var.get())
-            st_lang = "hu" if self.lang == "HU" else "en"
+            job_model = self.model_var.get()
+            use_st  = self._is_supertonic(job_model)
+            st_lang = self._st_lang_code()
             max_p   = 80 if is_opus else 100
             for i, s in enumerate(sentences):
                 if hasattr(self,'stop_event') and self.stop_event.is_set(): return
+                if self.model_var.get() != job_model: return
                 if use_st:
                     if self._st_style is None:
-                        self.init_supertonic()
+                        if not self.init_supertonic(job_model): return
                     st_cfg = self._get_st_config()
-                    wav, _ = self.st_tts.synthesize(
-                        s,
-                        voice_style=self._st_style,
-                        lang=st_lang,
-                        speed=float(st_cfg["speed"])
-                    )
+                    wav, _ = self._st_synthesize(s, st_lang, st_cfg)
                     sample_rate = getattr(self.st_tts, 'sample_rate', 24000)
                     samples = wav.flatten().tolist() if hasattr(wav, 'flatten') else list(wav)
                     all_samples.extend(samples)
                     silence_sec = float(st_cfg["silence"])
                 else:
+                    if self.tts is None: return
                     audio = self.tts.generate(s)
                     if audio and audio.samples:
                         all_samples.extend(audio.samples)
                         sample_rate = audio.sample_rate
-                    silence_sec = float(self.e_silence.get() or 0.5)
+                    silence_sec = float(self._get_piper_config()["silence"])
                 all_samples.extend([0.0] * int(sample_rate * silence_sec))
                 pct       = int(((i+1)/len(sentences))*max_p)
                 remaining = max(0, self._total_chars-int(self._total_chars*(i+1)/len(sentences)))
@@ -2356,7 +2895,13 @@ class App:
                     self._bar_set(p),
                     self.lbl_charcount.config(
                         text=f"⬇ {r:,}".replace(",","\u00a0"), fg="#ffaa00")])
-            audio_np    = np.array(all_samples, dtype=np.float32)
+            audio_np = np.array(all_samples, dtype=np.float32)
+            norm_percent = self._current_audio_volume_norm()
+            if audio_np.size:
+                peak = float(np.max(np.abs(audio_np)))
+                if peak > 1e-12:
+                    target = max(0.0, min(100.0, float(norm_percent))) / 100.0
+                    audio_np = (audio_np * (target / peak)).clip(-1.0, 1.0)
             audio_int16 = (audio_np*32767).clip(-32768,32767).astype(np.int16)
             with wave.open(wav_path,'w') as wf:
                 wf.setnchannels(1); wf.setsampwidth(2); wf.setframerate(sample_rate)
@@ -2371,7 +2916,7 @@ class App:
                 if use_st:
                     opus_args = self._get_st_config()["opus"].split()
                 else:
-                    opus_args = self.e_opus.get().split()
+                    opus_args = self._get_piper_config()["opus"].split()
                 subprocess.run(
                     [opus_exe] + opus_args + [wav_path, opus_path],
                     check=True, creationflags=CREATE_NO_WINDOW)
@@ -2390,14 +2935,14 @@ class App:
     # ──────────────────────────── help / about ──────────────────────────────
     def show_help(self):
         h_win = tk.Toplevel(self.root)
-        h_win.title("HELP / SÚGÓ")
-        h_win.geometry("850x800")
+        h_win.title("HELP / SÚGÓ / AJUTOR")
+        h_win.geometry("900x820")
         h_win.configure(bg="#1e1e2e")
         if self.lang == "HU":
-            h_txt = ("HASZNÁLATI ÚTMUTATÓ (HU) - v1.3 PORTABLE\n"
+            h_txt = ("HASZNÁLATI ÚTMUTATÓ (HU) - v1.3.4 PORTABLE\n"
                      "==================================================\n\n"
                      "1. SZÖVEG BEVITELE ÉS GYORSBILLENTYŰK\n"
-                     "   - Másolás/Beillesztés: Ctrl+C / Ctrl+V vagy Jobb gomb.\n"                  
+                     "   - Másolás/Beillesztés: Ctrl+C / Ctrl+V vagy Jobb gomb.\n"
                      "   - Importálás: Az 'Import .txt' gombbal tölthetsz be fájlokat.\n\n"
                      "2. JAVÍTÁS ÉS KONVERTÁLÁS\n"
                      "   - A kék gomb (JAVÍTÁS) felkészíti a szöveget a felolvasásra.\n"
@@ -2421,9 +2966,192 @@ class App:
                      "   - STOP: Megállítja a felolvasást ÉS a fájlmentést is.\n\n"
                      "7. KIMENETI FORMÁTUMOK\n"
                      "   - WAV: Legjobb minőség / OPUS: Kis méret, jó minőség.\n\n"
+                     "8. PIPER HANGBEÁLLÍTÁSOK RÉSZLETESEN (⚙ Piper panel)\n"
+                     "   ⚠ FIGYELEM — A SEBESSÉG FORDÍTOTTAN MŰKÖDIK!\n"
+                     "   - Sebesség (Length Scale): minél NAGYOBB az érték, a hang\n"
+                     "     annál LASSABBAN beszél; minél KISEBB, annál GYORSABBAN.\n"
+                     "     Ez a Piper motor belső 'length_scale' paramétere, NEM a\n"
+                     "     megszokott sebesség-logika! Alapérték: 1.3. Például\n"
+                     "     1.0 = gyorsabb beszéd, 1.6 = lassabb beszéd.\n"
+                     "   - Zaj skála (Noise Scale): a hang természetességét és\n"
+                     "     változatosságát szabályozza. Alapérték: 0.5. Magasabb\n"
+                     "     érték élénkebb, de kevésbé stabil hangzást ad.\n"
+                     "   - Zaj szélesség (Noise Width): a hangok (fonémák)\n"
+                     "     időzítésének véletlenszerűségét szabályozza. Alapérték: 0.6.\n"
+                     "   - Csend hossza (szünet): a mondatok közötti szünet\n"
+                     "     hossza másodpercben. Alapérték: 0.7 mp.\n"
+                     "   - Opus bitráta: az OPUS fájlmentés tömörítési minősége\n"
+                     "     (pl. '--bitrate 64'). Nagyobb szám = jobb minőség, de\n"
+                     "     nagyobb fájlméret.\n"
+                     "   - Puffer méret (Buffer): a hangkártya lejátszási pufferének\n"
+                     "     mérete mintában. Alapérték: 4096. Nagyobb érték simább\n"
+                     "     lejátszást ad lassabb gépeken, de kicsit nagyobb\n"
+                     "     késleltetéssel jár.\n"
+                     "   - Hangerő normalizálás (%): a hangerő a digitális csúcs\n"
+                     "     hány százalékára legyen normalizálva. Alapérték: 70%.\n\n"
+                     "9. SUPERTONIC HANGBEÁLLÍTÁSOK RÉSZLETESEN (⚙ Supertonic panel)\n"
+                     "   - Sebesség (Speed): itt EGYENESEN arányos — minél NAGYOBB\n"
+                     "     az érték, annál GYORSABBAN beszél a hang. (A Piperrel\n"
+                     "     ELLENTÉTES logika!) Alapérték: 1.00x, tartomány: 0.7x–2.0x.\n"
+                     "   - Minőség (total_steps, 1-12): a szintézis belső lépéseinek\n"
+                     "     száma. Magasabb érték jobb hangminőséget ad, de lassabb\n"
+                     "     a generálás. Alapértelmezett: 10.\n"
+                     "   - Max blokkhossz (karakter): egy szintézis-blokkban egyszerre\n"
+                     "     feldolgozott karakterek maximális száma. Alapértelmezett: 120.\n"
+                     "   - Csend hossza (mp): a mondatok közötti szünet hossza.\n"
+                     "     Alapértelmezett: 0.3 mp.\n"
+                     "   - Opus bitráta: ugyanaz, mint a Pipernél. Alapértelmezett:\n"
+                     "     '--bitrate 64'.\n"
+                     "   - Puffer méret (Buffer): ugyanaz, mint a Pipernél.\n"
+                     "     Alapértelmezett: 8192.\n"
+                     "   - Hangerő normalizálás (%): ugyanaz, mint a Pipernél.\n"
+                     "     Alapértelmezett: 70%.\n"
+                     "   - Fonetikus javítás (Supertonic): bekapcsolva a megadott\n"
+                     "     'Fonetikus szabályok' szerint cseréli le a szöveg egyes\n"
+                     "     szavait/részleteit közvetlenül a felolvasás előtt, hogy a\n"
+                     "     Supertonic motor helyesebben ejtse ki azokat.\n\n"
+                     "   FONETIKUS SZABÁLYOK FORMÁTUMA:\n"
+                     "     'forrás:cél, forrás2:cél2, ...' — vesszővel elválasztott\n"
+                     "     lista, minden elem 'forrás:cél' alakban.\n"
+                     "     Példa: 'vas!:vash, Saul:Shaul'\n\n"
+                     "   A '!' JEL MŰKÖDÉSE (v1.3.5, nagyon fontos!):\n"
+                     "     '!' JEL NÉLKÜL (pl. 'zs:zzs'): a program a mintát\n"
+                     "     MINDENÜTT lecseréli — a szó ELEJÉN, KÖZEPÉN és VÉGÉN\n"
+                     "     egyaránt, feltétel nélkül. (v1.3.4-ig ez csak a szó\n"
+                     "     elején működött — pl. 'Jeruzsálem' szó KÖZEPÉN lévő\n"
+                     "     'zs'-t nem érte el egy sima 'zs:...' szabály. Ez most\n"
+                     "     már javítva van, mindenhol illeszkedik.)\n"
+                     "     '!' JELLEL (pl. 'vas!:vash'): a csere SZINTÉN\n"
+                     "     mindenütt megtörténik, DE KIVÉTELT képez az az egy\n"
+                     "     előfordulás, ahol a minta UTÁN közvetlenül az aktuális\n"
+                     "     nyelv (HU/EN/RO) egyik magánhangzója következik. Magyar\n"
+                     "     nyelven a magánhangzók: a, á, e, é, i, í, o, ó, ö, ő,\n"
+                     "     u, ú, ü, ű. Ez azért fontos, mert '!' jel nélkül a\n"
+                     "     'vas' minta minden olyan szóban is lecserélődne, amely\n"
+                     "     'vas'-sal KEZDŐDIK vagy azt TARTALMAZZA — például a\n"
+                     "     'vasárnap' vagy a 'vasal' szó eleje is hibásan\n"
+                     "     megváltozna. A 'vas!:vash' szabállyal a csere csak a\n"
+                     "     'vas' és a 'vasfüggöny' típusú szavakra vonatkozik, a\n"
+                     "     'vasárnap'-ra és 'vasal'-ra NEM (mert utánuk\n"
+                     "     magánhangzó következik).\n"
+                     "     FONTOS: a magánhangzó-készlet attól függ, éppen melyik\n"
+                     "     nyelven (HU/EN/RO) fut a program — ez a LANGUAGE_VOWELS\n"
+                     "     táblában bővíthető, ha valaki más nyelvhez is szeretné\n"
+                     "     használni a '!' jelet.\n"
+                     "     A szabályok kis- és nagybetű-érzéketlenek, és a leghosszabb\n"
+                     "     minták cserélődnek le először, hogy elkerüljük az egymást\n"
+                     "     átfedő szabályok közti ütközést.\n\n"
+                     "10. MIÉRT JOBB A MENTETT HANG, MINT AMIT ÉLŐBEN HALLASZ?\n"
+                     "   - Főleg Piper hangoknál előfordulhat, hogy élő felolvasás\n"
+                     "     közben a mondatok végén egy-egy szótag/hang 'elharapva'\n"
+                     "     hallatszik, de ugyanez a szöveg WAV vagy OPUS fájlba\n"
+                     "     mentve már hibátlanul szól.\n"
+                     "   - Ennek oka technikai: élő lejátszásnál a hangkártya\n"
+                     "     meghajtója néha a hangadatok legvégét levágja, mielőtt\n"
+                     "     azok ténylegesen megszólalnának (főleg nagyobb Puffer\n"
+                     "     méret esetén). Fájlba mentéskor viszont a teljes,\n"
+                     "     csonkítatlan hangminta kerül be, ezért ott ez a hiba\n"
+                     "     nem jelentkezik.\n"
+                     "   - Ha egy szövegrészt véglegesen szeretnél felhasználni,\n"
+                     "     érdemes inkább WAV/OPUS mentés után meghallgatni,\n"
+                     "     nem az élő FELOLVASÁS gombbal.\n\n"
+                     "Soli Deo Gloria")
+        elif self.lang == "RO":
+            h_txt = ("GHID DE UTILIZARE (RO) - v1.3.4 PORTABLE\n"
+                     "==================================================\n\n"
+                     "1. INTRODUCEREA TEXTULUI ȘI SCURTĂTURI\n"
+                     "   - Copiere/Lipire: Ctrl+C / Ctrl+V sau clic dreapta.\n"
+                     "   - Import: Încarcă fișiere .txt cu butonul 'Import .txt'.\n\n"
+                     "2. CORECTARE ȘI CONVERSIE\n"
+                     "   - Butonul albastru (CORECTARE) pregătește textul pentru citire.\n"
+                     "   - Extinde abrevierile și formatează referințele biblice etc.\n"
+                     "   - Convertește numerele în cuvinte pentru HU/EN/RO!\n"
+                     "   - Folosește secțiunea de ieșire pentru conversie fără corectare.\n\n"
+                     "3. MOD PORTABIL (STICK USB)\n"
+                     "   - Poți copia întregul folder al programului pe un stick USB.\n"
+                     "   - Include: models/, opusenc.exe, fișierele javitasok_*.txt.\n"
+                     "   - Funcționează complet offline!\n\n"
+                     "4. COMPONENTE LIPSĂ\n"
+                     "   - Programul folosește două tipuri de modele vocale: Piper și\n"
+                     "     Supertonic.\n"
+                     "   - Deschide Program → Verificare dependențe pentru a descărca\n"
+                     "     modelele lipsă, opusenc.exe etc.\n\n"
+                     "5. DESCĂRCAREA MODELELOR\n"
+                     "   - Voci Piper TTS: https://huggingface.co/rhasspy/piper-voices\n"
+                     "   - Copiază fișierele .onnx și .onnx.json în folderul models/.\n\n"
+                     "6. FUNCȚII INTELIGENTE\n"
+                     "   - Salt la clic: În timpul citirii, dă clic pe orice propoziție\n"
+                     "     pentru ca programul să continue exact de acolo!\n"
+                     "   - STOP: Oprește atât citirea, cât și generarea fișierului.\n\n"
+                     "7. FORMATE DE IEȘIRE\n"
+                     "   - WAV: Calitate maximă / OPUS: Dimensiune mică, calitate bună.\n\n"
+                     "8. SETĂRILE VOCII PIPER, DETALIAT (panoul ⚙ Piper)\n"
+                     "   ⚠ ATENȚIE — VITEZA FUNCȚIONEAZĂ INVERS!\n"
+                     "   - Viteză (Length Scale): cu cât valoarea este MAI MARE, cu\n"
+                     "     atât vocea vorbește MAI LENT; cu cât este MAI MICĂ, cu atât\n"
+                     "     vorbește MAI REPEDE. Acesta este parametrul intern\n"
+                     "     'length_scale' al motorului Piper, NU logica obișnuită de\n"
+                     "     viteză! Valoare implicită: 1.3. Ex: 1.0 = mai rapid,\n"
+                     "     1.6 = mai lent.\n"
+                     "   - Scală zgomot (Noise Scale): controlează naturalețea și\n"
+                     "     varietatea vocii. Implicit: 0.5. O valoare mai mare dă un\n"
+                     "     sunet mai viu, dar mai puțin stabil.\n"
+                     "   - Lățime zgomot (Noise Width): controlează caracterul\n"
+                     "     aleatoriu al timpului fonemelor. Implicit: 0.6.\n"
+                     "   - Durată pauză (silence): durata pauzei dintre propoziții,\n"
+                     "     în secunde. Implicit: 0.7 sec.\n"
+                     "   - Bitrate Opus: calitatea compresiei la salvarea OPUS\n"
+                     "     (ex. '--bitrate 64'). Valoare mai mare = calitate mai bună,\n"
+                     "     dar fișier mai mare.\n"
+                     "   - Dimensiune buffer: dimensiunea bufferului de redare al\n"
+                     "     plăcii de sunet, în eșantioane. Implicit: 4096. O valoare\n"
+                     "     mai mare oferă o redare mai lină pe computere mai lente,\n"
+                     "     dar cu o latență ușor mai mare.\n"
+                     "   - Normalizare volum (%): la ce procent din vârful digital\n"
+                     "     maxim să fie normalizat volumul. Implicit: 70%.\n\n"
+                     "9. SETĂRILE VOCII SUPERTONIC, DETALIAT (panoul ⚙ Supertonic)\n"
+                     "   - Viteză (Speed): aici este DIRECT proporțională — cu cât\n"
+                     "     valoarea este MAI MARE, cu atât vocea vorbește MAI REPEDE.\n"
+                     "     (Logică OPUSĂ față de Piper!) Implicit: 1.00x, interval:\n"
+                     "     0.7x–2.0x.\n"
+                     "   - Calitate (total_steps, 1-12): numărul pașilor interni ai\n"
+                     "     sintezei. O valoare mai mare oferă o calitate mai bună a\n"
+                     "     vocii, dar generarea este mai lentă. Implicit: 10.\n"
+                     "   - Lungime max. bloc (caractere): numărul maxim de caractere\n"
+                     "     procesate simultan într-un bloc de sinteză. Implicit: 120.\n"
+                     "   - Durată pauză (secunde): durata pauzei dintre propoziții.\n"
+                     "     Implicit: 0.3 sec.\n"
+                     "   - Bitrate Opus: la fel ca la Piper. Implicit: '--bitrate 64'.\n"
+                     "   - Dimensiune buffer: la fel ca la Piper. Implicit: 8192.\n"
+                     "   - Normalizare volum (%): la fel ca la Piper. Implicit: 70%.\n"
+                     "   - Corecție fonetică (Supertonic): dacă este activată,\n"
+                     "     înlocuiește anumite cuvinte/fragmente din text conform\n"
+                     "     'Regulilor fonetice' definite, chiar înainte de sinteză,\n"
+                     "     pentru ca motorul Supertonic să le pronunțe mai corect.\n\n"
+                     "   FORMATUL REGULILOR FONETICE:\n"
+                     "     'sursă:țintă, sursă2:țintă2, ...' — o listă separată prin\n"
+                     "     virgulă, fiecare element în formatul 'sursă:țintă'.\n"
+                     "     Exemplu: 'vas!:vash, Saul:Shaul'\n\n"
+                     "   CUM FUNCȚIONEAZĂ SEMNUL '!' (foarte important!):\n"
+                     "     Dacă cuvântul sursă se termină cu semnul '!' (ex. 'vas!'),\n"
+                     "     programul înlocuiește DOAR dacă cuvântul NU este urmat de o\n"
+                     "     vocală maghiară (a, á, e, é, i, í, o, ó, ö, ő, u, ú, ü, ű).\n"
+                     "     Acest lucru este important deoarece, fără semnul '!', modelul\n"
+                     "     'vas' ar fi înlocuit în orice cuvânt care ÎNCEPE cu 'vas' —\n"
+                     "     de exemplu și începutul cuvântului 'vasárnap' sau 'vasal' ar\n"
+                     "     fi modificat greșit. Cu regula 'vas!:vash', înlocuirea se\n"
+                     "     aplică doar cuvintelor de tip 'vas' și 'vasfüggöny', NU și\n"
+                     "     cuvintelor 'vasárnap' sau 'vasal' (deoarece sunt urmate de o\n"
+                     "     vocală).\n"
+                     "     O regulă FĂRĂ semnul '!' (ex. 'Saul:Shaul') înseamnă\n"
+                     "     întotdeauna o înlocuire simplă, necondiționată — cuvântul\n"
+                     "     poate apărea oriunde în text, iar înlocuirea are loc mereu.\n"
+                     "     Regulile nu diferențiază literele mari de cele mici, iar\n"
+                     "     modelele cele mai lungi sunt înlocuite primele, pentru a\n"
+                     "     evita conflictele dintre reguli care se suprapun.\n\n"
                      "Soli Deo Gloria")
         else:
-            h_txt = ("USER GUIDE (EN) - v1.3 PORTABLE\n"
+            h_txt = ("USER GUIDE (EN) - v1.3.4 PORTABLE\n"
                      "==================================================\n\n"
                      "1. TEXT INPUT & HOTKEYS\n"
                      "   - Copy/Paste: Ctrl+C / Ctrl+V or Right-click.\n"
@@ -2450,6 +3178,94 @@ class App:
                      "   - STOP: Stops both speech AND file generation.\n\n"
                      "7. OUTPUT FORMATS\n"
                      "   - WAV: Studio quality / OPUS: Small size, high fidelity.\n\n"
+                     "8. PIPER VOICE SETTINGS IN DETAIL (⚙ Piper panel)\n"
+                     "   ⚠ WARNING — SPEED WORKS IN REVERSE HERE!\n"
+                     "   - Speed (Length Scale): the LARGER the value, the SLOWER\n"
+                     "     the voice speaks; the SMALLER it is, the FASTER it speaks.\n"
+                     "     This is the Piper engine's internal 'length_scale'\n"
+                     "     parameter, NOT the usual speed logic! Default: 1.3.\n"
+                     "     E.g. 1.0 = faster speech, 1.6 = slower speech.\n"
+                     "   - Noise Scale: controls the naturalness/variability of the\n"
+                     "     voice. Default: 0.5. A higher value gives a livelier but\n"
+                     "     less stable sound.\n"
+                     "   - Noise Width: controls the randomness of phoneme timing.\n"
+                     "     Default: 0.6.\n"
+                     "   - Silence duration: length of the pause between sentences,\n"
+                     "     in seconds. Default: 0.7 sec.\n"
+                     "   - Opus Bitrate: compression quality for OPUS file export\n"
+                     "     (e.g. '--bitrate 64'). Higher number = better quality, but\n"
+                     "     larger file size.\n"
+                     "   - Buffer size: the sound card's playback buffer size in\n"
+                     "     samples. Default: 4096. A larger value gives smoother\n"
+                     "     playback on slower computers, at the cost of slightly\n"
+                     "     higher latency.\n"
+                     "   - Volume Normalization (%): what percentage of the maximum\n"
+                     "     digital peak the volume should be normalized to.\n"
+                     "     Default: 70%.\n\n"
+                     "9. SUPERTONIC VOICE SETTINGS IN DETAIL (⚙ Supertonic panel)\n"
+                     "   - Speed: here it is DIRECTLY proportional — the LARGER the\n"
+                     "     value, the FASTER the voice speaks. (OPPOSITE logic to\n"
+                     "     Piper!) Default: 1.00x, range: 0.7x–2.0x.\n"
+                     "   - Quality (total_steps, 1-12): the number of internal\n"
+                     "     synthesis steps. A higher value gives better voice\n"
+                     "     quality but slower generation. Default: 10.\n"
+                     "   - Max chunk length (chars): the maximum number of characters\n"
+                     "     processed in a single synthesis chunk. Default: 120.\n"
+                     "   - Silence (sec): length of the pause between sentences.\n"
+                     "     Default: 0.3 sec.\n"
+                     "   - Opus Bitrate: same as for Piper. Default: '--bitrate 64'.\n"
+                     "   - Buffer size: same as for Piper. Default: 8192.\n"
+                     "   - Volume Normalization (%): same as for Piper. Default: 70%.\n"
+                     "   - Phonetic correction (Supertonic): when enabled, replaces\n"
+                     "     certain words/fragments in the text according to the\n"
+                     "     'Phonetic rules' field, right before synthesis, so that\n"
+                     "     the Supertonic engine pronounces them more correctly.\n\n"
+                     "   PHONETIC RULES FORMAT:\n"
+                     "     'source:target, source2:target2, ...' — a comma-separated\n"
+                     "     list, each item in the form 'source:target'.\n"
+                     "     Example: 'vas!:vash, Saul:Shaul'\n\n"
+                     "   HOW THE '!' MARK WORKS (v1.3.5, very important!):\n"
+                     "     WITHOUT '!' (e.g. 'zs:zzs'): the pattern is replaced\n"
+                     "     EVERYWHERE it occurs — at the start, middle, or end of\n"
+                     "     a word, unconditionally. (Up to v1.3.4 this only worked\n"
+                     "     at the start of a word — e.g. the 'zs' in the MIDDLE of\n"
+                     "     'Jeruzsálem' was never reached by a plain 'zs:...' rule.\n"
+                     "     This is now fixed — it matches anywhere.)\n"
+                     "     WITH a trailing '!' (e.g. 'vas!:vash'): the replacement\n"
+                     "     ALSO happens everywhere, EXCEPT for the one occurrence\n"
+                     "     where the pattern is immediately followed by a vowel of\n"
+                     "     the CURRENT language (HU/EN/RO). In Hungarian the\n"
+                     "     vowels are: a, á, e, é, i, í, o, ó, ö, ő, u, ú, ü, ű.\n"
+                     "     This matters because, without the '!', the pattern 'vas'\n"
+                     "     would also be replaced inside every word CONTAINING\n"
+                     "     'vas' — for example the beginning of 'vasárnap' (Sunday)\n"
+                     "     or 'vasal' (to iron) would be wrongly changed too. With\n"
+                     "     'vas!:vash', the replacement only applies to words like\n"
+                     "     'vas' and 'vasfüggöny', NOT to 'vasárnap' or 'vasal'\n"
+                     "     (because they are followed by a vowel).\n"
+                     "     IMPORTANT: which letters count as vowels depends on\n"
+                     "     which language (HU/EN/RO) the program is currently\n"
+                     "     running in — this is extensible in the LANGUAGE_VOWELS\n"
+                     "     table for anyone who wants to use '!' with another\n"
+                     "     language.\n"
+                     "     Rules are case-insensitive, and the longest patterns are\n"
+                     "     replaced first, to avoid conflicts between overlapping\n"
+                     "     rules.\n\n"
+                     "10. WHY DOES THE SAVED AUDIO SOMETIMES SOUND BETTER THAN\n"
+                     "    WHAT YOU HEAR LIVE?\n"
+                     "   - Especially with Piper voices, you may notice that during\n"
+                     "     live playback the last syllable/sound of a sentence gets\n"
+                     "     slightly 'clipped', while the very same text saved as a\n"
+                     "     WAV or OPUS file sounds correct and complete.\n"
+                     "   - This is a technical, driver-level issue: during live\n"
+                     "     playback the sound card driver can sometimes cut off the\n"
+                     "     tail end of the audio data right before it is actually\n"
+                     "     played (more noticeable with a larger Buffer size).\n"
+                     "     When saving to a file, the full, untruncated audio\n"
+                     "     samples are written, so this problem does not occur.\n"
+                     "   - If you need a piece of text for final use, it's best to\n"
+                     "     check it after WAV/OPUS export rather than relying only\n"
+                     "     on the live SPEAK button.\n\n"
                      "Soli Deo Gloria")
         txt_widget = tk.Text(h_win, bg="#2a2a3e", fg="#e0e0e0",
                              font=("Consolas",10), padx=15, pady=15, wrap="word")
