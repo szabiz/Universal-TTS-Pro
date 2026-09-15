@@ -122,6 +122,7 @@ Universal-TTS-pro/
 │   ├── CC-BY-4.0.txt
 │   ├── CC0-1.0.txt
 │   └── BSD-3-Clause.txt
+│   └── PSF-2.0
 ├── README.md                           # This documentation
 ├── javitasok_HU.txt                    # Hungarian normalization dictionary
 ├── javitasok_EN.txt                    # English normalization dictionary
