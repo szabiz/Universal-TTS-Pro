@@ -1,38 +1,60 @@
-================================================================================
+===============================================================================
 UNIVERSAL TTS PRO 1.3.4
 FULL THIRD-PARTY LICENSES & COPYRIGHT NOTICES
 ================================================================================
 
 Copyright (C) 2026 szabiz
 
-This file contains the full license texts for the licenses identified for the
-third-party software, runtime components, tools, and voice/model assets
-included with or distributed by Universal TTS Pro.
+Universal TTS Pro is distributed under the GNU General Public License
+version 3 (GPL-3.0).
 
-COMPONENTS
+This file contains the license information, copyright notices, attribution
+information, and full license texts applicable to third-party software,
+runtime components, tools, and voice/model assets included with or
+distributed with Universal TTS Pro.
+
+THIRD-PARTY COMPONENTS
 --------------------------------------------------------------------------------
-1. Universal TTS Pro Core GUI / Integration       GNU GPL v3.0
-2. eSpeak-ng                                      GNU GPL v3.0
-3. Sherpa-ONNX Runtime                            Apache License 2.0
-4. Piper TTS Engine / Code                        MIT License
-5. Supertonic 3 Runtime / Sample Code             MIT License
-6. SoundDevice / PortAudio                        MIT License
-7. ONNX Runtime                                   MIT License
-8. NumPy                                          BSD 3-Clause License
-9. Opus Tools (opusenc)                           BSD 3-Clause License
-10. Python Runtime / Tkinter                      PSF License Version 2
-11. Piper Models: hu_HU Anna, Berta, Imre,
+
+1. eSpeak-ng                                      GNU GPL v3.0
+2. Sherpa-ONNX Runtime                            Apache License 2.0
+3. Piper TTS Engine / Code                        MIT License
+4. Supertonic 3 Runtime / Sample Code             MIT License
+5. SoundDevice / PortAudio                        MIT License
+6. ONNX Runtime                                   MIT License
+7. NumPy                                          BSD 3-Clause License
+8. Opus Tools (opusenc)                           BSD 3-Clause License
+9. Python Runtime / Tkinter                       PSF License Version 2
+
+VOICE / MODEL ASSETS
+--------------------------------------------------------------------------------
+
+10. Piper Models: hu_HU Anna, Berta, Imre,
     ro_RO Mihai                                    CC0 1.0
-12. Piper Model: en_US LibriTTS-R                 CC BY 4.0
-13. Supertonic 3 Model Weights                    OpenRAIL-M
+
+11. Piper Model: en_US LibriTTS-R
+    Underlying LibriTTS-R dataset                  CC BY 4.0
+
+12. Supertonic 3 Model Weights                    OpenRAIL-M
 
 IMPORTANT COPYRIGHT / NOTICE INFORMATION
 --------------------------------------------------------------------------------
-The copyright and attribution notices of the original component distributions
-must be retained. Where a bundled component supplies its own NOTICE file or
-additional third-party notices, those notices should also remain with that
-component. This document is intended to provide the complete license texts
-corresponding to the licenses listed above.
+
+The copyright, attribution, and license notices of the original component
+distributions remain applicable to those components.
+
+Where a bundled component supplies its own LICENSE, NOTICE, COPYRIGHT,
+ATTRIBUTION, or other third-party notice file, those notices should be
+retained and remain applicable to the corresponding component.
+
+This document provides the license texts and attribution information for
+the third-party components and model/data assets identified above.
+
+The license of a third-party component does not change or replace the
+license of Universal TTS Pro itself. Universal TTS Pro is licensed under
+the GNU General Public License version 3 (GPL-3.0), subject to the
+applicable licenses and terms of the third-party components, software,
+tools, and model/data assets included with or distributed by the program.
 
 
 
