@@ -123,7 +123,7 @@ DEFAULT_ST_SETTINGS = {
 
 # ════════════════════════════════════════════════════════════════════════════
 #  NYELVENKÉNTI MAGÁNHANGZÓ-KÉSZLETEK a Fonetikus szabályok '!' jeléhez
-#  (v1.3.5). Ez dönti el, mit tekint a program "magánhangzónak" az adott
+#  (v1.3.4). Ez dönti el, mit tekint a program "magánhangzónak" az adott
 #  nyelven, amikor a '!' jelet használó szabály azt vizsgálja, hogy a
 #  csere helyén NEM következik-e magánhangzó.
 #  BŐVÍTHETŐ: bárki hozzáadhat új nyelvet, csak fel kell venni egy új
@@ -153,6 +153,84 @@ SUPERTONIC_VOICES = [
     "ST: Olivia[F4]",
     "ST: Emily [F5]",
 ]
+
+# ════════════════════════════════════════════════════════════════════════════
+#  LICENCKAPUK (v1.4.0)
+#  Minden hangmotor-CSALÁD (Supertonic, illetve Piper/Sherpa-ONNX) ELSŐ
+#  tényleges használatakor (lejátszás VAGY konvertálás) megjelenik egy
+#  modális ablak a motorhoz és a hozzá tartozó hangmodellekhez kapcsolódó
+#  ÖSSZES harmadik féltől származó licenc teljes, eredeti szövegével.
+#  A [ELFOGADOM] gomb csak a szöveg végéig görgetés UTÁN aktiválódik.
+#  Az elfogadás motoronként, perzisztensen (JSON-fájlban) elmentődik —
+#  legközelebb (akár új programindítás után is) többé nem kérdezi, csak
+#  ha a LICENSE_GATE_VERSION számot később megemeled (pl. licencváltozás
+#  vagy új hangmodell hozzáadása esetén).
+# ════════════════════════════════════════════════════════════════════════════
+
+LICENSE_GATE_VERSION = 2   # emeld meg, ha a bundle-ölt licencszövegek/modellek változnak
+LICENSE_TEXTS_DIR    = "license_texts"   # az exe / script melletti mappa neve
+
+LICENSE_GATE_INFO = {
+    "supertonic": {
+        "flag_key":  "supertonic",
+        "title_hu":  "Supertonic hangmotor — Licenc és jogi tudnivalók",
+        "title_en":  "Supertonic Voice Engine — License & Legal Notice",
+        "title_ro":  "Motorul vocal Supertonic — Licență și informații legale",
+        "voices":    SUPERTONIC_VOICES,
+        # Supertonic kód (MIT) + modellsúlyok (OpenRAIL-M) + NumPy (BSD),
+        # amit a hangminta-feldolgozás motorfüggetlenül használ.
+        "files": ["MIT.txt", "OpenRAIL-M.txt", "BSD-3-Clause.txt"],
+    },
+    "onnx": {
+        "flag_key":  "onnx",
+        "title_hu":  "Piper / Sherpa-ONNX hangmotor — Licenc és jogi tudnivalók",
+        "title_en":  "Piper / Sherpa-ONNX Voice Engine — License & Legal Notice",
+        "title_ro":  "Motorul vocal Piper / Sherpa-ONNX — Licență și informații legale",
+        "voices":    None,   # futásidőben töltjük fel a talált Piper modellekkel
+        # Sherpa-ONNX futtató (Apache 2.0) + eSpeak-ng fonetikai adatok (GPLv3)
+        # + Piper hangmodellek (CC BY 4.0 / CC0) + NumPy (BSD) + SoundDevice (MIT).
+        "files": ["Apache-2.0.txt", "GPL-3.0.txt", "CC-BY-4.0.txt",
+                   "CC0-1.0.txt", "BSD-3-Clause.txt", "MIT.txt"],
+    },
+}
+
+
+def _license_flag_path():
+    """A licenc-elfogadás perzisztens tárolási helye, az exe/script mellett."""
+    return get_data_path("license_acceptance.json")
+
+
+def _load_license_flags():
+    try:
+        with open(_license_flag_path(), "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def _save_license_flags(data):
+    try:
+        with open(_license_flag_path(), "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        print(f"Licenc-elfogadás mentési hiba: {e}")
+
+
+def _read_license_file(fname):
+    """A bundle-ölt licencszöveg beolvasása; hordozható és PyInstaller
+    módban is működik (get_data_path elsőbbséggel, resource_path fallback)."""
+    for base in (get_data_path(os.path.join(LICENSE_TEXTS_DIR, fname)),
+                 resource_path(os.path.join(LICENSE_TEXTS_DIR, fname))):
+        if os.path.exists(base):
+            try:
+                with open(base, "r", encoding="utf-8") as f:
+                    return f.read()
+            except Exception:
+                pass
+    return (f"[HIÁNYZIK: '{fname}' — ez a licencszöveg-fájl nem található "
+            f"a '{LICENSE_TEXTS_DIR}' mappában. Kérjük, telepítsd újra a programot, "
+            f"vagy vedd fel kapcsolatot a fejlesztővel.]")
+
 
 # opusenc letöltési URL-ek (fallback sorrendben)
 OPUSENC_URLS = [
@@ -1136,7 +1214,7 @@ class App:
     def _apply_st_phonetic_rules(self, text, rules_str, lang=None):
         """Fonetikus szabályok alkalmazása EGY menetben.
 
-        v1.3.5 — ÚJRATERVEZETT VISELKEDÉS (a korábbi \\b szóhatár-
+        v1.3.4 — ÚJRATERVEZETT VISELKEDÉS (a korábbi \\b szóhatár-
         megkötés megszűnt, mert az megakadályozta, hogy a csere a szó
         BELSEJÉBEN (pl. "Jeruzsálem" közepén) is működjön):
 
@@ -1355,12 +1433,143 @@ class App:
     def _is_supertonic(self, model_name=""):
         return str(model_name).startswith("ST: ")
 
+    def _get_piper_voice_list(self):
+        """A jelenleg megtalált Piper/ONNX hangmodellek listája (Supertonic
+        hangok nélkül) — a licenckapu felsorolásához."""
+        try:
+            return [m for m in self.scan_models() if not self._is_supertonic(m)]
+        except Exception:
+            return []
+
+    # ------------------------------------------------ licenckapu (jogi ablak)
+    def _ensure_engine_license(self, engine_key, dynamic_voice_list=None):
+        """
+        Megjeleníti — de csak az adott hangmotor ELSŐ tényleges
+        használatakor — a motorhoz és hangmodelljeihez tartozó összes
+        harmadik féltől származó licenc TELJES szövegét. Az [ELFOGADOM]
+        gomb csak a végéig görgetés után válik aktívvá. Az elfogadás
+        eredménye perzisztensen elmentődik, legközelebb (újraindítás
+        után is) nem kérdezi újra — kivéve, ha LICENSE_GATE_VERSION nőtt.
+
+        Visszatér: True, ha a motor használható (korábban vagy most
+        elfogadta), False, ha a felhasználó elutasította — ebben az
+        esetben a hívó félnek meg KELL szakítania a lejátszást/konvertálást.
+        """
+        info = LICENSE_GATE_INFO[engine_key]
+        flags = _load_license_flags()
+        entry = flags.get(info["flag_key"])
+        if isinstance(entry, dict) and entry.get("accepted") \
+                and entry.get("version") == LICENSE_GATE_VERSION:
+            return True
+
+        result = {"accepted": False}
+        win = tk.Toplevel(self.root)
+        title = info.get(f"title_{self.lang.lower()}", info["title_en"])
+        win.title(title)
+        win.configure(bg="#1e1e2e")
+        win.geometry("860x660")
+        win.transient(self.root)
+        win.grab_set()
+        win.resizable(True, True)
+        win.protocol("WM_DELETE_WINDOW", lambda: None)  # csak gombbal zárható
+
+        tk.Label(win, text=title, bg="#1e1e2e", fg="#00d4ff",
+                 font=("Segoe UI", 13, "bold"), justify="left",
+                 wraplength=800, pady=8).pack(fill="x", padx=14)
+
+        voices = dynamic_voice_list if dynamic_voice_list is not None else info.get("voices")
+        intro = []
+        if voices:
+            intro.append("Voice models covered by this engine / "
+                          "Ez a hangmotor az alábbi hangmodelleket foglalja magába:")
+            intro.extend(f"   • {v}" for v in voices)
+            intro.append("")
+        intro.append(
+            "The complete, original text of every third-party license belonging to\n"
+            "this voice engine and the voice models listed above follows below.\n"
+            "Please scroll to the END of the text — the [ACCEPT] button only becomes\n"
+            "active afterwards.\n\n"
+            "Az alábbiakban az ehhez a hangmotorhoz és a fent felsorolt hangmodellekhez\n"
+            "tartozó ÖSSZES harmadik féltől származó licenc TELJES, eredeti szövege\n"
+            "olvasható. Kérjük, görgessen a szöveg VÉGÉIG — az [ELFOGADOM] gomb csak\n"
+            "ezután válik aktívvá."
+        )
+        body_parts = ["\n".join(intro), "\n\n" + "═" * 78 + "\n"]
+        for fname in info["files"]:
+            body_parts.append(_read_license_file(fname))
+            body_parts.append("\n\n" + "═" * 78 + "\n")
+        full_text = "\n".join(body_parts)
+
+        frame = tk.Frame(win, bg="#1e1e2e")
+        frame.pack(fill="both", expand=True, padx=14, pady=8)
+        scrollbar = tk.Scrollbar(frame)
+        scrollbar.pack(side="right", fill="y")
+        txt = tk.Text(frame, bg="#2a2a3e", fg="#e0e0e0", font=("Consolas", 9),
+                       padx=12, pady=12, wrap="word", relief="flat", bd=0)
+        txt.insert("1.0", full_text)
+        txt.config(state="disabled")
+
+        ok_btn_holder = {}
+
+        def _on_scroll(*args):
+            scrollbar.set(*args)
+            _first, _last = txt.yview()
+            if _last >= 0.999 and "btn" in ok_btn_holder:
+                ok_btn_holder["btn"].config(state="normal", cursor="hand2")
+
+        txt.config(yscrollcommand=_on_scroll)
+        txt.pack(side="left", fill="both", expand=True)
+        scrollbar.config(command=txt.yview)
+
+        tk.Label(win, bg="#1e1e2e", fg="#ffaa00", font=("Segoe UI", 9), pady=4,
+                 text="The [ACCEPT] button activates once you scroll to the end. / "
+                      "Az [ELFOGADOM] gomb a szöveg végéig görgetve aktiválódik."
+                 ).pack(fill="x")
+
+        btn_frame = tk.Frame(win, bg="#1e1e2e")
+        btn_frame.pack(fill="x", pady=10)
+
+        def _do_accept():
+            result["accepted"] = True
+            fl = _load_license_flags()
+            fl[info["flag_key"]] = {
+                "accepted": True,
+                "version": LICENSE_GATE_VERSION,
+                "accepted_at": datetime.now().isoformat(timespec="seconds"),
+            }
+            _save_license_flags(fl)
+            win.grab_release()
+            win.destroy()
+
+        def _do_reject():
+            result["accepted"] = False
+            win.grab_release()
+            win.destroy()
+
+        ok_btn = tk.Button(btn_frame, text="✔  ACCEPT / ELFOGADOM", state="disabled",
+                            bg="#2e7d32", fg="#ffffff", font=("Segoe UI", 10, "bold"),
+                            width=26, command=_do_accept)
+        ok_btn.pack(side="right", padx=14)
+        ok_btn_holder["btn"] = ok_btn
+
+        tk.Button(btn_frame, text="✘  Decline / Nem fogadom el", bg="#444444",
+                  fg="#ffffff", width=24, command=_do_reject).pack(side="right")
+
+        # ha a szöveg kilóg rövidnek és eleve nincs mit görgetni, azonnal engedjük
+        win.update_idletasks()
+        _first, _last = txt.yview()
+        if _last >= 0.999:
+            ok_btn.config(state="normal", cursor="hand2")
+
+        self.root.wait_window(win)
+        return result["accepted"]
+
     def _st_lang_code(self):
         """A Supertonic szintézishez (és a fonetikus '!' magánhangzó-
         ellenőrzéshez) használt nyelvkód, a program aktuális UI nyelve
         alapján.
 
-        JAVÍTVA v1.3.5: korábban a Román (RO) felület is mindig "en"
+        JAVÍTVA v1.3.4: korábban a Román (RO) felület is mindig "en"
         nyelvkódot küldött a Supertonic motornak — pedig a Supertonic
         hivatalosan támogatja a románt is. Mostantól HU→"hu", RO→"ro",
         minden más esetben "en".
@@ -1544,7 +1753,7 @@ class App:
                                      font=("Arial", 9, "bold"))
         self.btn_save_st.pack(pady=5)
 
-        # ÚJ v1.3.5: egy gombbal az AKTUÁLIS panel-értékek minden
+        # ÚJ v1.3.4: egy gombbal az AKTUÁLIS panel-értékek minden
         # Supertonic hangra (Alex, James, Robert, ... Emily) ráírhatók,
         # nem csak a kiválasztottra.
         self.btn_save_st_all = tk.Button(
@@ -2245,7 +2454,7 @@ class App:
             messagebox.showerror("Hiba a mentés során", str(e))
 
     def save_supertonic_settings_all(self):
-        """ÚJ v1.3.5: a panelban jelenleg beállított értékeket ELMENTI
+        """ÚJ v1.3.4: a panelban jelenleg beállított értékeket ELMENTI
         MINDEN Supertonic hang (Alex, James, Robert, Sam, Daniel, Sarah,
         Lily, Jessica, Olivia, Emily) saját JSON konfigurációs fájljába.
 
@@ -2673,8 +2882,10 @@ class App:
             self.stop_all(); self.root.after(50, self.quick_speak); return
         selected = self.model_var.get()
         if self._is_supertonic(selected):
+            if not self._ensure_engine_license("supertonic"): return
             if not self.init_supertonic(selected): return
         else:
+            if not self._ensure_engine_license("onnx", self._get_piper_voice_list()): return
             if self.tts is None:
                 if not self.init_sherpa(): return
         target_widget = self.root.focus_get()
@@ -2736,7 +2947,7 @@ class App:
                         self.lbl_status.config(
                             text=f"Olvasás: {idx+1}/{len(sentences)}", fg="lightgreen")])
                     samples = self._normalize_samples(samples, self._current_audio_volume_norm())
-                    # JAVÍTÁS v1.3.5: élő felolvasásnál (sd.play) egyes
+                    # JAVÍTÁS v1.3.4: élő felolvasásnál (sd.play) egyes
                     # hangkártya-meghajtók (főleg WASAPI Windows alatt) a
                     # lejátszás végét néhány tized másodperccel a valódi
                     # audio-adatok vége ELŐTT zárják le, ha a puffer/blokk
@@ -2845,8 +3056,10 @@ class App:
                 return
         selected = self.model_var.get()
         if self._is_supertonic(selected):
+            if not self._ensure_engine_license("supertonic"): return
             if not self.init_supertonic(selected): return
         else:
+            if not self._ensure_engine_license("onnx", self._get_piper_voice_list()): return
             if not self.init_sherpa(): return
         self._total_chars = len(txt)
         self.lbl_charcount.config(
@@ -3014,7 +3227,7 @@ class App:
                      "     'forrás:cél, forrás2:cél2, ...' — vesszővel elválasztott\n"
                      "     lista, minden elem 'forrás:cél' alakban.\n"
                      "     Példa: 'vas!:vash, Saul:Shaul'\n\n"
-                     "   A '!' JEL MŰKÖDÉSE (v1.3.5, nagyon fontos!):\n"
+                     "   A '!' JEL MŰKÖDÉSE (v1.3.4, nagyon fontos!):\n"
                      "     '!' JEL NÉLKÜL (pl. 'zs:zzs'): a program a mintát\n"
                      "     MINDENÜTT lecseréli — a szó ELEJÉN, KÖZEPÉN és VÉGÉN\n"
                      "     egyaránt, feltétel nélkül. (v1.3.4-ig ez csak a szó\n"
@@ -3224,7 +3437,7 @@ class App:
                      "     'source:target, source2:target2, ...' — a comma-separated\n"
                      "     list, each item in the form 'source:target'.\n"
                      "     Example: 'vas!:vash, Saul:Shaul'\n\n"
-                     "   HOW THE '!' MARK WORKS (v1.3.5, very important!):\n"
+                     "   HOW THE '!' MARK WORKS (v1.3.4, very important!):\n"
                      "     WITHOUT '!' (e.g. 'zs:zzs'): the pattern is replaced\n"
                      "     EVERYWHERE it occurs — at the start, middle, or end of\n"
                      "     a word, unconditionally. (Up to v1.3.4 this only worked\n"
@@ -3283,9 +3496,10 @@ class App:
             "Ultimate Edition - 2026\n\n"
             "CREDITS & TECHNOLOGY:\n"
             "------------------------------------------\n"
-            "• Voice Models (Piper): Community-contributed Piper TTS models\n"
-            "  based on open datasets, incl. Mozilla Common Voice.\n"
-            "  rhasspy/piper-voices (HuggingFace)\n\n"
+            "• Voice Models (Piper):\n"
+            "  - HU & RO models: CC0 1.0 (Public Domain)\n"
+            "  - en_US LibriTTS-R: CC BY 4.0 (Koizumi, Zen et al. / OpenSLR)\n"
+            "  - Source: rhasspy/piper-voices (HuggingFace)\n\n"
             "• Voice Engine (Piper): Sherpa-ONNX Runtime\n"
             "  by k2-fsa / Next-gen Kaldi — Apache 2.0\n\n"
             "• Phonetic Processing: eSpeak-ng Data & Rules\n"
@@ -3312,7 +3526,9 @@ class App:
             "------------------------------------------\n"
             "Developer: szabiz\n"
             "Contact: szabiz@yahoo.com\n"
-            "License: GNU GPL v3.0 (Open Source)\n\n"
+            "License: GNU GPL v3.0 (Open Source)\n"
+            "Source Code: https://github.com/szabiz/Universal-TTS-Pro\n"
+            "Full Licenses: See THIRD_PARTY_LICENSES.txt in app folder\n\n"
             "Soli Deo Gloria"
         )
         win = tk.Toplevel(self.root)
