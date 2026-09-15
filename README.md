@@ -41,19 +41,49 @@ Since **Universal TTS Pro** runs entirely offline and processes neural AI speech
 
 ## 🛠️ Tech Stack & Open-Source Credits
 
-This project is built upon incredible open-source technologies, respecting all their corresponding licensing terms:
+Universal TTS Pro is built upon and distributed with a number of excellent open-source technologies, runtime components, audio tools, and voice/model assets. The applicable licenses, copyright notices, and attribution requirements of these components are respected.
 
-* **Voice Engine (Piper):** [Sherpa-ONNX Runtime](https://github.com/k2-fsa/sherpa-onnx) by k2-fsa / Next-gen Kaldi — **Apache 2.0 License**
-* **Voice Models (Piper):** Community-contributed models from [rhasspy/piper-voices](https://huggingface.co/rhasspy/piper-voices) — **MIT** (repo-level; individual model licenses vary per voice, see the table below and the MODEL_CARD for each)
-* **Voice Engine (Supertonic):** [Supertonic TTS 3](https://github.com/supertone-inc/supertonic) by Supertone Inc. — **MIT License** (code) / **OpenRAIL-M** (model weights)
-* **Text-to-Phoneme Data (espeak-ng):** [eSpeak-ng](https://github.com/espeak-ng/espeak-ng) — **GNU GPL v3.0 License**
-* **Audio Playback:** [SoundDevice](https://python-sounddevice.readthedocs.io/) (PortAudio) by Matthias Geier — **MIT License**
-* **Numerical Processing:** [NumPy](https://numpy.org/) — **BSD 3-Clause License**
-* **Audio Compression:** [Opus Tools (opusenc)](https://gitlab.xiph.org/xiph/opus-tools) by Xiph.Org Foundation — **BSD 3-Clause License**
-* **GUI Framework:** Tkinter — **Python Software Foundation (PSF) License**
-* **Development Assistance:** AI-assisted software engineering.
+### 🎙️ Voice & Speech Technologies
+
+- **Piper Voice Engine:** Piper TTS Engine / Code by Michael Hansen / Rhasspy — **MIT License**
+- **Piper Runtime:** [Sherpa-ONNX Runtime](https://github.com/k2-fsa/sherpa-onnx) by k2-fsa / Next-gen Kaldi — **Apache License 2.0**
+- **Piper Voice Models:** Community-contributed models from [rhasspy/piper-voices](https://huggingface.co/rhasspy/piper-voices) — **repository: MIT License**. Individual voice/model and dataset licenses vary and are identified separately for each model.
+- **Text-to-Phoneme Processing:** [eSpeak NG](https://github.com/espeak-ng/espeak-ng) — **GNU GPL v3.0 or later**
+- **Supertonic Voice Engine:** [Supertonic TTS 3](https://github.com/supertone-inc/supertonic) by Supertone Inc. — **MIT License (code)** / **OpenRAIL-M (model weights)**
+
+### 🔊 Audio & Signal Processing
+
+- **Audio Playback:** [SoundDevice](https://python-sounddevice.readthedocs.io/) by Matthias Geier — **MIT License**
+- **Audio Backend:** PortAudio by Ross Bencina and Phil Burk — **MIT License**
+- **Audio Compression:** [Opus Tools (opusenc)](https://gitlab.xiph.org/xiph/opus-tools) by Xiph.Org Foundation — **BSD 3-Clause License**
+- **Numerical Processing:** [NumPy](https://numpy.org/) — **BSD 3-Clause License**
+- **ONNX Runtime:** Microsoft ONNX Runtime — **MIT License**
+
+### 🖥️ Application & Runtime
+
+- **GUI Framework:** Python / Tkinter — **Python Software Foundation License 2.0**
+- **Python Runtime:** Python Software Foundation — **PSF License 2.0**
+
+### 🗣️ Voice & Model Assets
+
+- **HU & RO Piper Voice Models:** Anna, Berta, Imre and Mihai — **CC0 1.0 (Public Domain)**, as applicable to the distributed model assets.
+- **English Piper Voice Model:** `en_US-libritts_r-medium` — based on the **LibriTTS-R** corpus; the underlying LibriTTS-R dataset is licensed under **CC BY 4.0**.
+- **LibriTTS-R Attribution:**  
+  *Yuma Koizumi, Heiga Zen, Shigeki Karita, Yifan Ding, Kohei Yatabe, Nobuyuki Morioka, Michiel Bacchiani, Yu Zhang, Wei Han, and Ankur Bapna,*  
+  *"LibriTTS-R: A Restored Multi-Speaker Text-to-Speech Corpus".*
+- **Supertonic 3 Model Weights:** **OpenRAIL-M License**
+
+### 🤖 Other
+
+- **Development Assistance:** AI-assisted software engineering.
 
 ---
+
+### 📄 Licensing & Attribution
+
+For complete license texts, copyright notices, attribution information, and additional model/data licensing details, please see **[`THIRD-PARTY-LICENSES.txt`](THIRD-PARTY-LICENSES.txt)** included with this distribution.
+
+> **Important:** Repository-level licenses do not necessarily determine the license of an individual voice model or its underlying dataset. Model-specific licensing information takes precedence and should be checked against the corresponding model card and dataset attribution.
 
 ## 🚀 Getting the Application
 
