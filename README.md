@@ -3,7 +3,6 @@
 A portable, fully offline Text-to-Speech (TTS) client built with Python and Tkinter. This application combines the power of **Piper TTS** and **Supertonic TTS** engines to deliver high-quality, lightning-fast speech synthesis directly on your device, without requiring an internet connection, cloud services, or external API keys.
 
 ---
-# What's New in 1.3.1
 
 ## 🌟 Key Features & Smart Capabilities
 
@@ -18,15 +17,7 @@ A portable, fully offline Text-to-Speech (TTS) client built with Python and Tkin
 * **Click-to-Jump Navigation:** Click on any sentence inside the text area while speech is active to instantly skip or resume playback from that exact point.
 * **Instant Smart STOP:** Pressing STOP instantly kills both the audio playback AND the background file generation process.
 * **Flexible Audio Outputs:** Export speech to studio-quality **WAV** or space-efficient, high-fidelity **OPUS** files.
----
-# What's New in 1.3.4
-
-* **Max Chunk Length (Characters):** Added configuration to control the maximum number of characters processed simultaneously within a single synthesis block.
-* **Volume Settings:** Introduced adjustable volume control features.
-* **Supertonic 3 Phonetic Corrections:** Enhanced phonetic replacement and correction features tailored for Supertonic 3.
-* **New Clean & Smaller Build (`build_UniversalTTS_Pro_1.3.4`):** Optimized packaging script to build a cleaner and smaller executable version.
-* **Bug Fixes:** Resolved minor application freezing issues for smoother overall stability.
-* **Improved Audio Export Quality:** Fixed sentence-ending clipping issues during file saving, delivering cleaner and higher audio quality compared to live preview.
+* **Built-in License Compliance Screens:** The first time you actually use the Supertonic engine, and separately the first time you use a Piper/Sherpa-ONNX voice, the app shows a scrollable window with the complete, original license text of every third-party component tied to that engine. You must scroll to the end before you can accept — after that, your decision is remembered (per engine) and you won't be asked again unless the bundled license texts are later updated.
 
 ---
 
@@ -53,7 +44,7 @@ Since **Universal TTS Pro** runs entirely offline and processes neural AI speech
 This project is built upon incredible open-source technologies, respecting all their corresponding licensing terms:
 
 * **Voice Engine (Piper):** [Sherpa-ONNX Runtime](https://github.com/k2-fsa/sherpa-onnx) by k2-fsa / Next-gen Kaldi — **Apache 2.0 License**
-* **Voice Models (Piper):** Community-contributed models from Mozilla Common Voice & [rhasspy/piper-voices](https://huggingface.co/rhasspy/piper-voices) — **MIT** (repo-level; individual model licenses in MODEL_CARD)
+* **Voice Models (Piper):** Community-contributed models from [rhasspy/piper-voices](https://huggingface.co/rhasspy/piper-voices) — **MIT** (repo-level; individual model licenses vary per voice, see the table below and the MODEL_CARD for each)
 * **Voice Engine (Supertonic):** [Supertonic TTS 3](https://github.com/supertone-inc/supertonic) by Supertone Inc. — **MIT License** (code) / **OpenRAIL-M** (model weights)
 * **Text-to-Phoneme Data (espeak-ng):** [eSpeak-ng](https://github.com/espeak-ng/espeak-ng) — **GNU GPL v3.0 License**
 * **Audio Playback:** [SoundDevice](https://python-sounddevice.readthedocs.io/) (PortAudio) by Matthias Geier — **MIT License**
@@ -77,6 +68,8 @@ Download the fully pre-compiled, portable ZIP from the [**Releases**](https://gi
 * Default Piper voice models (HU / EN / RO)
 * Supertonic 3 model weights
 * Language normalization dictionaries
+* `license_texts/` — the full, original license texts shown by the in-app license acceptance screens (**required** for the app's license gates to work; do not delete)
+* `LICENSE.txt` and `THIRD_PARTY_LICENSES.txt` — full project and third-party license documentation
 
 Simply extract the ZIP to any folder or USB drive and run `UniversalTTS_Pro.exe`.
 
@@ -102,7 +95,7 @@ pip install sherpa-onnx sounddevice numpy supertonic
 
 #### Build command:
 ```bash
-build_UniversalTTS_Pro.bat
+build_UniversalTTS_Pro_1_3_4.bat
 ```
 
 > **Note:** The `UniversalTTS_Pro.spec` file contains the full PyInstaller configuration. Adjust paths if your folder structure differs.
@@ -116,18 +109,27 @@ build_UniversalTTS_Pro.bat
 ```text
 Universal-TTS-pro/
 │
-├── UniversalTTS_pro.py           # Main Python source code
-├── UniversalTTS_Pro.spec         # PyInstaller build configuration
-├── build_UniversalTTS_Pro.bat    # Automated build script
-├── LICENSE                       # GNU General Public License v3.0 (GPLv3)
-├── README.md                     # This documentation
-├── javitasok_HU.txt              # Hungarian normalization dictionary
-├── javitasok_EN.txt              # English normalization dictionary
-├── javitasok_RO.txt              # Romanian normalization dictionary
-├── UTTsp_0.jpg                   # Screenshot — Main interface
-├── UTTsp_1.jpg                   # Screenshot — Voice models
-├── UTTsp_2.jpg                   # Screenshot — Piper settings
-└── UTTsp_3.jpg                   # Screenshot — Supertonic settings
+├── UniversalTTS_pro.py                 # Main Python source code
+├── UniversalTTS_Pro.spec               # PyInstaller build configuration
+├── build_UniversalTTS_Pro_1_3_4.bat    # Automated build script
+├── LICENSE.txt                         # GNU General Public License v3.0 (GPLv3) + license summary
+├── THIRD_PARTY_LICENSES.txt            # Full third-party licenses & copyright notices
+├── license_texts/                      # Individual full license texts, read at runtime by the
+│   ├── MIT.txt                         #   in-app license acceptance screens (see "Built-in
+│   ├── OpenRAIL-M.txt                  #   License Compliance Screens" above). Required at build
+│   ├── Apache-2.0.txt                  #   time — the build script copies this next to the exe.
+│   ├── GPL-3.0.txt
+│   ├── CC-BY-4.0.txt
+│   ├── CC0-1.0.txt
+│   └── BSD-3-Clause.txt
+├── README.md                           # This documentation
+├── javitasok_HU.txt                    # Hungarian normalization dictionary
+├── javitasok_EN.txt                    # English normalization dictionary
+├── javitasok_RO.txt                    # Romanian normalization dictionary
+├── UTTsp_0.jpg                         # Screenshot — Main interface
+├── UTTsp_1.jpg                         # Screenshot — Voice models
+├── UTTsp_2.jpg                         # Screenshot — Piper settings
+└── UTTsp_3.jpg                         # Screenshot — Supertonic settings
 ```
 
 > ⚠️ **The following components are NOT included in the repository** and must be added manually before building, or are included in the compiled release package:
@@ -138,9 +140,16 @@ Universal-TTS-pro/
 ### 📦 Compiled Portable Package (from Releases)
 
 ```text
-UniversalTTS_Pro_v1.3.1_Portable/
+UniversalTTS_Pro_v1.3.4_Portable/
 │
 ├── UniversalTTS_Pro.exe          # Compiled executable (PyInstaller)
+├── LICENSE.txt
+├── README.md
+├── THIRD_PARTY_LICENSES.txt
+├── license_texts/                # Full license texts used by the in-app license
+│                                  #   acceptance screens (see above) — required, do not delete
+├── license_acceptance.json       # Auto-created on first run once you accept a license
+│                                  #   screen; delete it to make that screen reappear
 │
 ├── _internal/                    # PyInstaller runtime bundle (auto-generated)
 │   ├── opusenc.exe               # Opus encoder          (BSD 3-Clause)
@@ -150,7 +159,6 @@ UniversalTTS_Pro_v1.3.1_Portable/
 │   ├── sherpa_onnx/              # Sherpa-ONNX runtime   (Apache 2.0)
 │   ├── onnxruntime/              # ONNX Runtime          (MIT)
 │   ├── numpy/                    # NumPy                 (BSD 3-Clause)
-│   ├── PIL/                      # Pillow                (HPND License)
 │   ├── _sounddevice_data/        # SoundDevice / PortAudio (MIT)
 │   ├── _tcl_data/                # Tcl/Tk                (BSD-style)
 │   ├── _tk_data/                 # Tkinter               (PSF)
@@ -222,11 +230,9 @@ All Piper voice models are distributed via the [`rhasspy/piper-voices`](https://
 
 ### ℹ️ License Notes
 
-- **Blizzard/Lessac Research License** *(en_US-lessac-medium dataset):* ⚠️ This is the most restrictive license in the project. The original Lessac/Blizzard 2013 dataset is licensed for **non-commercial, research use only**. Commercial use, including the development or distribution of voice synthesis products, is explicitly excluded. If you intend to distribute Universal TTS Pro commercially, consider replacing the Lessac model with a CC0 or CC-BY licensed English voice (e.g., `en_US-libritts-high` or `en_US-ryan-medium`).
+- **OpenRAIL-M** *(Supertonic 3 model weights):* This is **not** equivalent to a standard MIT or BSD license. It permits both personal and commercial use, but includes specific use-based restrictions (Attachment A of the license) — e.g. prohibiting impersonation without consent, generating deceptive or defamatory content, or using the model in ways that discriminate against or harm individuals or groups. Copyright, patent, and attribution notices must be preserved whenever the model itself (or a derivative of it) is redistributed. Read the full text in `license_texts/OpenRAIL-M.txt` (also shown in-app on first use of the Supertonic engine) before deployment in any commercial or public-facing product.
 
-- **OpenRAIL-M** *(Supertonic 3 model weights):* This is **not** equivalent to a standard MIT or BSD license. It permits both personal and commercial use, but includes behavioral use restrictions — prohibiting use for impersonation without consent, harassment, or other harmful purposes. An attribution requirement also applies. Read the [full OpenRAIL-M license text](https://huggingface.co/Supertone/supertonic-3/blob/main/LICENSE) before deployment in any commercial or public-facing product.
-
-- - **CC BY 4.0** *(en_US-libritts_r-medium dataset):* This model is fully compatible with commercial use. The only requirement is proper attribution. The project complies with this by providing the OpenSLR 141 source citation in this documentation.
+- **CC BY 4.0** *(en_US-libritts_r-medium dataset):* This model is fully compatible with commercial use. The only requirement is proper attribution to the dataset creators. Attribution: **LibriTTS-R**, derived from LibriTTS, corpus by Yuma Koizumi, Heiga Zen, Shigeki Karita, Yifan Ding, Kohei Yatabe, Nobuyuki Morioka, Michiel Bacchiani, Yu Zhang, Wei Han, Ankur Bapna — distributed via [OpenSLR 141](https://openslr.org/141/) and [rhasspy/piper-voices](https://huggingface.co/rhasspy/piper-voices). No modifications were made to the underlying dataset beyond training the bundled Piper voice model.
 
 - **Apache 2.0** *(Sherpa-ONNX):* Requires preservation of copyright notices and the `NOTICE` file when redistributing. Compatible with most commercial and open-source uses.
 
@@ -236,13 +242,13 @@ All Piper voice models are distributed via the [`rhasspy/piper-voices`](https://
 
 - **PSF License** *(Python / Tkinter):* Compatible with commercial use. Attribution required.
 
-- **GNU GPL v3.0** *(espeak-ng-data):* This is a copyleft license. Because the portable package includes espeak-ng data for phonetic conversion, the combined distribution is subject to GPLv3 terms, requiring open-source availability. Since the Universal TTS Pro source code is freely available under the MIT license on GitHub, this requirement is naturally fulfilled.
+- **GNU GPL v3.0** *(espeak-ng-data):* This is a copyleft license. Because the portable package includes espeak-ng data for phonetic conversion, the combined distribution is subject to GPLv3 terms, requiring open-source availability. Since the Universal TTS Pro source code is itself freely available under the **GNU GPL v3.0** on GitHub, this requirement is naturally fulfilled.
 
-Universal TTS Pro itself is released under the GNU General Public License v3.0 — see the LICENSE file for details.
+Universal TTS Pro itself is released under the **GNU General Public License v3.0** — see `LICENSE.txt` for the full text, and `THIRD_PARTY_LICENSES.txt` / `license_texts/` for every third-party license in full.
 
 ---
 
-## 📖 USER GUIDE (v1.3 PORTABLE)
+## 📖 USER GUIDE (v1.3.4 PORTABLE)
 
 ### 1. Text Input & Hotkeys
 * **Copy/Paste:** Standard `Ctrl+C` / `Ctrl+V` or Right-click context menu.
