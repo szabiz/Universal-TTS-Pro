@@ -81,7 +81,7 @@ Universal TTS Pro is built upon and distributed with a number of excellent open-
 
 ### 📄 Licensing & Attribution
 
-For complete license texts, copyright notices, attribution information, and additional model/data licensing details, please see **[`THIRD-PARTY-LICENSES.txt`](THIRD-PARTY-LICENSES.txt)** included with this distribution.
+For complete license texts, copyright notices, attribution information, and additional model/data licensing details, please see **[`THIRD_PARTY_LICENSES.txt`](THIRD_PARTY_LICENSES.txt)** included with this distribution.
 
 > **Important:** Repository-level licenses do not necessarily determine the license of an individual voice model or its underlying dataset. Model-specific licensing information takes precedence and should be checked against the corresponding model card and dataset attribution.
 
